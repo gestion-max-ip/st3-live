@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ST3 Telecoms — Dashboard v3</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  /* Canvas */
+  --bg:#0d1117;
+  --bg-elev:#11161d;
+  --card:#161b22;
+  --card2:#1c2128;
+  --card-soft:#1a1f28;
+  --border:#30363d;
+  --border-soft:#21262d;
+  --border-strong:#3d4452;
+
+  /* Accents (default — palette overridable via tweaks) */
+  --accent:#2f81f7;
+  --accent-2:#388bfd;
+  --accent-soft:rgba(47,129,247,.12);
+  --accent-line:rgba(47,129,247,.35);
+  --green:#3fb950;
+  --green-soft:rgba(63,185,80,.13);
+  --red:#f85149;
+  --red-soft:rgba(248,81,73,.14);
+  --orange:#e3b341;
+  --orange-soft:rgba(227,179,65,.13);
+  --purple:#bc8cff;
+  --purple-soft:rgba(188,140,255,.14);
+  --teal:#39d353;
+  --pink:#f778ba;
+
+  /* Text */
+  --text:#e6edf3;
+  --text-soft:#c9d1d9;
+  --muted:#8b949e;
+  --muted-strong:#6e7681;
+
+  /* Surfaces */
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
+  --r-xl:20px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 4px 16px rgba(0,0,0,.4);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.55);
+
+  /* Density (overridable by tweaks) */
+  --pad-card:16px;
+  --pad-hero:22px;
+  --gap-grid:14px;
+  --kpi-value:1.7rem;
+}
+[data-density="compact"]{
+  --pad-card:12px;
+  --pad-hero:16px;
+  --gap-grid:10px;
+  --kpi-value:1.45rem;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+  font-feature-settings:"ss01","cv11";-webkit-font-smoothing:antialiased}
+
+/* Soft entry animation */
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.rise{animation:rise .5s cubic-bezier(.2,.7,.3,1) both}
+.rise.d1{animation-delay:.04s}.rise.d2{animation-delay:.09s}
+.rise.d3{animation-delay:.14s}.rise.d4{animation-delay:.19s}
+.rise.d5{animation-delay:.24s}
+
+/* ── HEADER ─────────────────────────────────────────── */
+.header{
+  background:linear-gradient(180deg,#0d1117 0%,#0e131b 100%);
+  padding:14px 28px;display:flex;justify-content:space-between;align-items:center;
+  gap:20px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(8px)
+}
+.header::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg,transparent 0%,var(--accent-line) 30%,var(--accent-line) 70%,transparent 100%);opacity:.4}
+.logo{display:flex;align-items:center;gap:13px;min-width:0}
+.logo-mark{width:40px;height:40px;border-radius:11px;
+  background:radial-gradient(circle at 30% 30%,var(--accent-2),var(--accent) 60%,#1a3a78);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  box-shadow:0 4px 14px -2px rgba(47,129,247,.5),inset 0 0 0 1px rgba(255,255,255,.1)}
+.logo h1{font-size:1.05rem;font-weight:700;letter-spacing:-.01em;line-height:1.1}
+.logo h1 .brand{color:var(--accent);font-weight:800;letter-spacing:.02em}
+.logo-sub{font-size:.7rem;color:var(--muted);margin-top:2px;letter-spacing:.01em}
+
+.header-mid{display:flex;align-items:center;gap:10px;flex:1;justify-content:center;min-width:0}
+.status-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 10px;
+  background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.28);border-radius:99px;
+  font-size:.74rem;font-weight:500;color:var(--text);white-space:nowrap}
+.status-pill.orange{background:rgba(227,179,65,.08);border-color:rgba(227,179,65,.32);color:var(--text)}
+.status-pill.red{background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35);color:var(--text)}
+.status-pill .pip{width:8px;height:8px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 0 3px rgba(63,185,80,.15);flex-shrink:0}
+.status-pill.orange .pip{background:var(--orange);box-shadow:0 0 0 3px rgba(227,179,65,.18)}
+.status-pill.red .pip{background:var(--red);box-shadow:0 0 0 3px rgba(248,81,73,.2);animation:pulse 1.5s infinite}
+.status-pill .lbl{color:var(--muted);font-weight:400}
+.status-pill strong{font-weight:600;color:var(--text-soft);font-variant-numeric:tabular-nums}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* Mode screenshot : désactive toutes les animations (activé via ?screenshot=1) */
+body.screenshot-mode *{animation:none!important;transition:none!important;}
+
+.header-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.source-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;
+  background:var(--card-soft);border:1px solid var(--border);border-radius:99px;
+  font-size:.7rem;color:var(--muted)}
+.source-chip strong{color:var(--text-soft);font-weight:600}
+.source-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent)}
+
+.tweaks-toggle{padding:6px 10px;background:var(--card-soft);border:1px solid var(--border);
+  border-radius:8px;color:var(--muted);cursor:pointer;font-size:.7rem;font-family:inherit;
+  display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.tweaks-toggle:hover{border-color:var(--accent);color:var(--text)}
+
+/* ── PERIOD BAR ──────────────────────────────────────── */
+.period-bar{background:var(--bg-elev);border-bottom:1px solid var(--border);
+  padding:10px 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.period-bar label{font-size:.7rem;color:var(--muted);text-transform:uppercase;
+  letter-spacing:1px;white-space:nowrap;font-weight:600}
+.presets{display:flex;gap:2px;background:var(--card);padding:3px;border-radius:8px;
+  border:1px solid var(--border-soft);flex-wrap:wrap}
+.preset-btn{padding:4px 11px;border-radius:5px;border:0;
+  background:transparent;color:var(--muted);cursor:pointer;font-size:.75rem;
+  font-family:inherit;transition:all .12s;font-weight:500}
+.preset-btn:hover{color:var(--text)}
+.preset-btn.active{background:var(--accent);color:#fff;box-shadow:var(--shadow-sm)}
+.date-range{display:flex;align-items:center;gap:6px;margin-left:auto}
+.date-range input[type=date]{background:var(--card);border:1px solid var(--border);
+  color:var(--text);padding:5px 9px;border-radius:6px;font-size:.76rem;
+  font-family:inherit;cursor:pointer;color-scheme:dark}
+.date-range input:focus{outline:none;border-color:var(--accent)}
+.apply-btn{padding:5px 14px;background:var(--accent);border:none;color:#fff;
+  border-radius:6px;cursor:pointer;font-size:.75rem;font-family:inherit;font-weight:600}
+.apply-btn:hover{background:var(--accent-2)}
+.compare-badge{background:var(--card);border:1px solid var(--border);border-radius:6px;
+  padding:4px 10px;font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.compare-badge span{font-weight:600;color:var(--text-soft)}
+
+/* ── CONTAINER ───────────────────────────────────────── */
+.container{max-width:1760px;margin:0 auto;padding:22px 28px 40px}
+
+/* ── SECTION TITLE — chapter style ───────────────────── */
+.section-title{display:flex;align-items:center;gap:12px;margin:30px 0 14px;padding:0}
+.section-title:first-child{margin-top:6px}
+.section-title .num{font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--muted-strong);
+  font-variant-numeric:tabular-nums}
+.section-title .lbl{font-size:.88rem;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--text);font-weight:700}
+.section-title .ico{font-size:1rem;opacity:.85}
+.section-title .rule{flex:1;height:1px;background:linear-gradient(90deg,var(--border) 0%,transparent 100%)}
+.section-title .meta{font-size:.7rem;color:var(--muted);font-weight:500}
+
+/* ── KPI HERO GRID (top 4) ───────────────────────────── */
+.kpi-hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap-grid);margin-bottom:var(--gap-grid)}
+@media(max-width:1200px){.kpi-hero-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.kpi-hero-grid{grid-template-columns:1fr}}
+
+.kpi-hero{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:var(--pad-hero) calc(var(--pad-hero) - 2px) calc(var(--pad-hero) - 4px);
+  position:relative;overflow:hidden;
+  transition:transform .18s,box-shadow .18s,border-color .18s}
+.kpi-hero::before{content:'';position:absolute;inset:0;background:
+  radial-gradient(circle at 100% 0%,var(--kc-soft,transparent) 0%,transparent 60%);
+  pointer-events:none;opacity:.55}
+.kpi-hero:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--kc)}
+.kpi-hero-accent{position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--kc) 0%,transparent 100%);border-radius:var(--r-md) var(--r-md) 0 0}
+
+.kpi-top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;position:relative}
+.kpi-label{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--muted);font-weight:600;display:flex;align-items:center;gap:7px}
+.kpi-label .dot{width:6px;height:6px;border-radius:50%;background:var(--kc)}
+.kpi-icon-wrap{display:flex;align-items:center;gap:5px}
+
+/* Trading-style delta */
+.kpi-delta-trading{display:inline-flex;align-items:center;gap:5px;
+  font-size:.78rem;font-weight:700;padding:4px 9px;border-radius:6px;margin-top:10px;
+  font-variant-numeric:tabular-nums}
+.kpi-delta-trading.up{background:var(--green-soft);color:var(--green);border:1px solid rgba(63,185,80,.28)}
+.kpi-delta-trading.down{background:var(--red-soft);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+.kpi-delta-trading.flat{background:var(--orange-soft);color:var(--orange);border:1px solid rgba(227,179,65,.28)}
+.kpi-delta-trading .tri{font-size:.7rem;line-height:1}
+.kpi-delta-trading .vs{color:var(--muted);font-weight:500;margin-left:2px}
+
+.kpi-value-big{font-size:var(--kpi-value);font-weight:700;color:var(--text);line-height:1.05;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;position:relative}
+.kpi-sub-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px;gap:8px;position:relative}
+.kpi-sub{font-size:.72rem;color:var(--muted)}
+.kpi-pct-pill{font-size:.66rem;font-weight:700;padding:3px 8px;border-radius:99px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi-pct-pill.r{background:var(--red-soft);color:var(--red)}
+.kpi-pct-pill.g{background:var(--green-soft);color:var(--green)}
+.kpi-pct-pill.o{background:var(--orange-soft);color:var(--orange)}
+
+/* Sparkline area (mini context inside hero card) */
+.kpi-spark{position:absolute;left:0;right:0;bottom:0;height:38px;opacity:.5;pointer-events:none}
+
+/* ── KPI SECONDARY GRID (4 smaller) ──────────────────── */
+.kpi-sec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap-grid);margin-bottom:6px}
+@media(max-width:1200px){.kpi-sec-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.kpi-sec-grid{grid-template-columns:1fr}}
+
+.kpi-sec{background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:13px 14px 11px;position:relative;overflow:hidden;
+  transition:transform .15s,border-color .15s}
+.kpi-sec:hover{transform:translateY(-1px);border-color:var(--kc)}
+.kpi-sec-bar{position:absolute;top:0;left:0;width:var(--bar);height:2px;background:var(--kc);
+  border-radius:var(--r-sm) 0 0 0;transition:width .6s cubic-bezier(.2,.7,.3,1)}
+.kpi-sec-label{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+  margin-bottom:7px;font-weight:600}
+.kpi-sec-value{font-size:1.2rem;font-weight:700;color:var(--text);line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi-sec-sub{font-size:.68rem;color:var(--muted);margin-top:4px}
+.kpi-sec-delta{display:inline-flex;align-items:center;gap:3px;font-size:.66rem;font-weight:700;
+  padding:2px 7px;border-radius:5px;margin-top:6px;font-variant-numeric:tabular-nums}
+.kpi-sec-delta.up{background:var(--green-soft);color:var(--green)}
+.kpi-sec-delta.down{background:var(--red-soft);color:var(--red)}
+.kpi-sec-delta.flat{background:var(--orange-soft);color:var(--orange)}
+
+/* ── TOOLTIP ⓘ ───────────────────────────────────────── */
+.info-wrap{position:relative;display:inline-block}
+.info-btn{background:none;border:none;color:var(--muted);font-size:.72rem;
+  cursor:pointer;line-height:1;padding:0 2px;opacity:.4;transition:opacity .15s;
+  user-select:none;letter-spacing:0}
+.info-btn:hover,.info-btn:focus{opacity:.9;color:var(--accent);outline:none}
+.info-tip{display:none;position:absolute;right:0;top:calc(100% + 6px);
+  background:#21262d;border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:10px 13px;font-size:.72rem;color:#cdd9e5;line-height:1.55;
+  min-width:210px;max-width:280px;z-index:300;box-shadow:var(--shadow-lg);
+  text-align:left;font-weight:400;white-space:normal;pointer-events:none}
+.info-tip.open{display:block;pointer-events:auto}
+
+/* ── CHART CARDS ─────────────────────────────────────── */
+.charts-row{display:grid;gap:var(--gap-grid);margin-bottom:var(--gap-grid)}
+.row-3{grid-template-columns:2fr 1fr 1fr}
+.row-2{grid-template-columns:3fr 2fr}
+.row-2b{grid-template-columns:1fr 1fr}
+.row-3b{grid-template-columns:1fr 1fr 1fr}
+.row-1{grid-template-columns:1fr}
+@media(max-width:1100px){.row-3,.row-2,.row-2b,.row-3b{grid-template-columns:1fr}}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:var(--pad-card);position:relative;transition:border-color .2s}
+.card:hover{border-color:var(--border-strong)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.card-title{font-size:.74rem;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--text);font-weight:700;display:flex;align-items:center;gap:9px}
+.card-title::before{content:'';display:inline-block;width:3px;height:13px;
+  background:var(--accent);border-radius:2px}
+.card-badge{font-size:.66rem;background:var(--card-soft);border:1px solid var(--border);
+  padding:3px 8px;border-radius:5px;color:var(--muted);font-weight:500}
+canvas{width:100%!important;max-height:250px}
+
+/* ── TABLES & LISTS ──────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse;font-size:.78rem}
+.tbl thead tr{border-bottom:1px solid var(--border)}
+.tbl th{color:var(--muted);font-weight:600;text-transform:uppercase;
+  font-size:.62rem;letter-spacing:.08em;padding:8px 9px;text-align:left}
+.tbl td{padding:8px 9px;border-bottom:1px solid var(--border-soft);color:var(--text-soft)}
+.tbl tbody tr:hover{background:rgba(47,129,247,.05)}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.66rem;
+  font-weight:700;font-variant-numeric:tabular-nums}
+.badge.g{background:var(--green-soft);color:var(--green)}
+.badge.o{background:var(--orange-soft);color:var(--orange)}
+.badge.r{background:var(--red-soft);color:var(--red)}
+.prog{height:4px;background:var(--card-soft);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.2,.7,.3,1)}
+.rank-list{display:flex;flex-direction:column;gap:7px}
+.rank-item{display:flex;align-items:center;gap:9px;padding:8px 10px;
+  background:var(--card-soft);border:1px solid transparent;border-radius:var(--r-sm);transition:all .15s}
+.rank-item:hover{border-color:var(--border)}
+.rank-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:.66rem;font-weight:800;flex-shrink:0;
+  font-variant-numeric:tabular-nums}
+.rank-name{flex:1;font-size:.78rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank-val{font-size:.78rem;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rank-bar-wrap{width:70px;flex-shrink:0}
+.stat-row{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--border-soft)}
+.stat-row:last-child{border:none}
+.stat-label{font-size:.74rem;color:var(--muted)}
+.stat-value{font-size:.82rem;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:4px 0}
+.gauge-pct{font-size:2.4rem;font-weight:700;line-height:1;margin:4px 0 2px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.gauge-label{font-size:.72rem;color:var(--muted)}
+
+/* ── TOP STRIP : Trésorerie + Pulses Appels ──────────── */
+.top-strip{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:var(--gap-grid);margin-bottom:6px}
+@media(max-width:1100px){.top-strip{grid-template-columns:1fr}}
+/* Grille 2 colonnes pour les gauges seules (Section 2) */
+.gauges-strip{display:grid;grid-template-columns:1fr 1fr;gap:var(--gap-grid);margin-bottom:var(--gap-grid)}
+@media(max-width:1100px){.gauges-strip{grid-template-columns:1fr}}
+/* Bank card pleine largeur (Section 1) */
+.bank-wrap{margin-bottom:var(--gap-grid)}
+
+/* TRÉSORERIE — la carte hero du dashboard */
+.bank-card{position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 0% 0%,rgba(47,129,247,.08) 0%,transparent 45%),
+    linear-gradient(135deg,#101820 0%,#161b22 55%,#1c2128 100%);
+  border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:20px 22px 18px;display:flex;flex-direction:column;min-height:230px}
+.bank-card[data-state="negative"]{
+  background:
+    radial-gradient(circle at 0% 0%,rgba(248,81,73,.1) 0%,transparent 50%),
+    linear-gradient(135deg,#1a1014 0%,#1a151a 50%,#1c1820 100%)}
+.bank-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent) 0%,var(--teal) 100%);
+  border-radius:var(--r-lg) var(--r-lg) 0 0}
+.bank-card[data-state="negative"]::before{
+  background:linear-gradient(90deg,var(--red) 0%,#a01e1e 100%)}
+
+.bank-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:10px}
+.bank-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--muted);font-weight:700;display:flex;align-items:center;gap:7px}
+.bank-state{font-size:.66rem;font-weight:700;padding:4px 9px;border-radius:99px;
+  text-transform:uppercase;letter-spacing:.07em;white-space:nowrap}
+.bank-state.ok{background:var(--green-soft);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+.bank-state.warn{background:var(--orange-soft);color:var(--orange);border:1px solid rgba(227,179,65,.32)}
+.bank-state.bad{background:var(--red-soft);color:var(--red);border:1px solid rgba(248,81,73,.32)}
+
+.bank-amount{font-size:2.6rem;font-weight:800;color:var(--text);line-height:1.05;
+  letter-spacing:-.025em;font-variant-numeric:tabular-nums;margin-bottom:4px}
+.bank-amount.neg{color:#ff7e75}
+.bank-amount .cur{font-size:1.5rem;font-weight:600;color:var(--muted-strong);margin-left:6px}
+.bank-sub{font-size:.74rem;color:var(--muted);margin-bottom:14px}
+
+.bank-accounts{display:flex;flex-direction:column;gap:6px;margin-top:auto;
+  padding-top:12px;border-top:1px solid var(--border-soft)}
+.bank-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;
+  padding:5px 0;font-size:.74rem}
+.bank-row .acc{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  min-width:0}
+.bank-row .acc .acc-name{color:var(--text-soft);font-weight:500;margin-right:6px}
+.bank-row .val{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bank-row .val.neg{color:var(--red)}
+.bank-row .val.zero{color:var(--muted-strong)}
+
+/* ── PULSE CARDS — gauges Appels (3 variantes) ───────── */
+.appel-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:16px 18px;display:flex;flex-direction:column;min-height:230px;position:relative;overflow:hidden}
+.appel-card[data-state="green"]{border-color:rgba(63,185,80,.3)}
+.appel-card[data-state="orange"]{border-color:rgba(227,179,65,.3)}
+.appel-card[data-state="red"]{border-color:rgba(248,81,73,.3)}
+
+.appel-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:10px}
+.appel-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);
+  font-weight:700;display:flex;align-items:center;gap:7px}
+.appel-title .ico{font-size:.95rem;opacity:.85}
+.appel-state-pill{font-size:.62rem;font-weight:700;padding:3px 8px;border-radius:99px;
+  text-transform:uppercase;letter-spacing:.06em}
+.appel-state-pill.green{background:var(--green-soft);color:var(--green)}
+.appel-state-pill.orange{background:var(--orange-soft);color:var(--orange)}
+.appel-state-pill.red{background:var(--red-soft);color:var(--red)}
+
+.appel-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:6px 0 2px}
+.appel-footer{display:flex;justify-content:space-between;align-items:center;
+  padding-top:10px;margin-top:6px;border-top:1px solid var(--border-soft);font-size:.7rem}
+.appel-footer .col{display:flex;flex-direction:column;gap:1px}
+.appel-footer .col.right{align-items:flex-end}
+.appel-footer .k{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.appel-footer .v{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* Variant: gauge classic (compteur voiture refiné) */
+.gauge-svg{width:210px;height:122px;display:block}
+.gauge-bg-arc{fill:none;stroke:#1c2128;stroke-width:18;stroke-linecap:round}
+.gauge-zone{fill:none;stroke-width:18;stroke-linecap:butt}
+.gauge-zone.red{stroke:url(#gradRed)}
+.gauge-zone.orange{stroke:url(#gradOrange)}
+.gauge-zone.green{stroke:url(#gradGreen)}
+.gauge-tick{stroke:var(--muted-strong);stroke-width:1.5;opacity:.6}
+.gauge-tick-major{stroke:var(--text-soft);stroke-width:2;opacity:.8}
+.gauge-needle{stroke:#fff;stroke-width:3;stroke-linecap:round;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.6));
+  transition:transform 1s cubic-bezier(.34,1.4,.5,1);transform-origin:105px 105px}
+.gauge-pivot{fill:url(#gradPivot);stroke:#0d1117;stroke-width:1.5}
+.gauge-pivot-inner{fill:#fff}
+.gauge-value{font-size:2rem;font-weight:800;line-height:1;margin-top:6px;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.gauge-value.green{color:var(--green)}
+.gauge-value.orange{color:var(--orange)}
+.gauge-value.red{color:var(--red)}
+.gauge-caption{font-size:.72rem;color:var(--muted);text-align:center;margin-top:4px}
+
+/* Variant: radial ring */
+.radial-wrap{width:170px;height:170px;position:relative}
+.radial-svg{width:100%;height:100%;transform:rotate(-90deg)}
+.radial-track{fill:none;stroke:var(--card-soft);stroke-width:14}
+.radial-fill{fill:none;stroke-width:14;stroke-linecap:round;
+  transition:stroke-dasharray 1s cubic-bezier(.2,.7,.3,1)}
+.radial-fill.green{stroke:var(--green);filter:drop-shadow(0 0 8px rgba(63,185,80,.35))}
+.radial-fill.orange{stroke:var(--orange);filter:drop-shadow(0 0 8px rgba(227,179,65,.35))}
+.radial-fill.red{stroke:var(--red);filter:drop-shadow(0 0 8px rgba(248,81,73,.35))}
+.radial-center{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center}
+.radial-center .v{font-size:2.6rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.radial-center .v.green{color:var(--green)}
+.radial-center .v.orange{color:var(--orange)}
+.radial-center .v.red{color:var(--red)}
+.radial-center .l{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;
+  font-weight:600;margin-top:2px}
+
+/* Variant: bar gauge */
+.bar-gauge{width:100%;max-width:230px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.bar-gauge-track{position:relative;width:100%;height:18px;
+  background:linear-gradient(90deg,
+    rgba(248,81,73,.18) 0%,rgba(248,81,73,.18) 28%,
+    rgba(227,179,65,.18) 28%,rgba(227,179,65,.18) 64%,
+    rgba(63,185,80,.18) 64%,rgba(63,185,80,.18) 100%);
+  border-radius:99px;border:1px solid var(--border-soft);overflow:hidden}
+.bar-gauge-fill{position:absolute;left:0;top:0;bottom:0;width:0%;
+  background:linear-gradient(90deg,var(--red) 0%,var(--orange) 50%,var(--green) 100%);
+  border-radius:99px;transition:width 1s cubic-bezier(.2,.7,.3,1);
+  box-shadow:0 0 12px rgba(63,185,80,.35)}
+.bar-gauge-fill.is-zero{background:var(--red);box-shadow:0 0 12px rgba(248,81,73,.35);width:6%!important}
+.bar-gauge-marks{display:flex;justify-content:space-between;width:100%;font-size:.58rem;
+  color:var(--muted-strong);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.bar-gauge-value{font-size:2.4rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;
+  letter-spacing:-.03em;margin-top:4px}
+.bar-gauge-value.green{color:var(--green)}
+.bar-gauge-value.orange{color:var(--orange)}
+.bar-gauge-value.red{color:var(--red)}
+
+/* ── IMPAYÉS CLIENTS — top urgents + table ──────────── */
+.impayes-top{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap-grid);margin-bottom:var(--gap-grid)}
+@media(max-width:1100px){.impayes-top{grid-template-columns:1fr}}
+
+.urgent-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);
+  padding:16px 18px;position:relative;overflow:hidden;cursor:pointer;
+  transition:transform .18s,border-color .18s,box-shadow .18s}
+.urgent-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.urgent-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--uc)}
+.urgent-card[data-sev="critical"]{border-color:rgba(160,30,30,.5);
+  background:linear-gradient(135deg,#1a1014 0%,var(--card) 80%)}
+.urgent-card[data-sev="critical"]::before{
+  background:linear-gradient(180deg,#a01e1e,var(--red));animation:pulse 2s infinite}
+
+.urgent-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+.urgent-name{font-size:.95rem;font-weight:700;color:var(--text);line-height:1.2;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.urgent-sev-badge{font-size:.6rem;font-weight:800;padding:3px 7px;border-radius:5px;
+  white-space:nowrap;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0}
+.urgent-sev-badge.critical{background:#a01e1e;color:#fff;animation:pulse 2s infinite}
+.urgent-sev-badge.red{background:var(--red-soft);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+.urgent-sev-badge.orange{background:var(--orange-soft);color:var(--orange);border:1px solid rgba(227,179,65,.3)}
+
+.urgent-amount{font-size:1.7rem;font-weight:800;color:var(--uc);line-height:1.05;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:4px 0 6px}
+.urgent-meta{display:flex;justify-content:space-between;align-items:center;
+  font-size:.7rem;color:var(--muted);margin-bottom:10px}
+.urgent-meta b{color:var(--text-soft);font-weight:600}
+.urgent-bar{height:6px;background:var(--card-soft);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.urgent-bar-fill{height:100%;background:var(--uc);border-radius:3px;
+  transition:width 1s cubic-bezier(.2,.7,.3,1)}
+.urgent-actions{display:flex;gap:6px}
+.urgent-btn{flex:1;padding:6px 10px;background:var(--card-soft);border:1px solid var(--border);
+  border-radius:6px;color:var(--text-soft);font-size:.7rem;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.urgent-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.urgent-btn.copied{border-color:var(--green);color:var(--green);background:var(--green-soft)}
+
+.impayes-card{background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:16px;overflow:hidden}
+.impayes-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.impayes-table thead tr{border-bottom:1px solid var(--border)}
+.impayes-table th{color:var(--muted);font-weight:600;text-transform:uppercase;
+  font-size:.62rem;letter-spacing:.08em;padding:9px 10px;text-align:left}
+.impayes-table td{padding:9px 10px;border-bottom:1px solid var(--border-soft);
+  color:var(--text-soft);vertical-align:middle}
+.impayes-table tbody tr:hover{background:rgba(47,129,247,.05)}
+.impayes-table td.amount{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
+.imp-sev{display:inline-block;width:8px;height:8px;border-radius:50%;
+  margin-right:6px;vertical-align:middle;flex-shrink:0}
+.imp-sev.green{background:var(--green);box-shadow:0 0 4px rgba(63,185,80,.5)}
+.imp-sev.orange{background:var(--orange);box-shadow:0 0 4px rgba(227,179,65,.5)}
+.imp-sev.red{background:var(--red);box-shadow:0 0 4px rgba(248,81,73,.5)}
+.imp-sev.critical{background:#a01e1e;box-shadow:0 0 8px #a01e1e;animation:pulse 1.5s infinite}
+.imp-days{font-size:.72rem;color:var(--muted)}
+.imp-empty{padding:24px;text-align:center;color:var(--green);font-size:.85rem;font-weight:600}
+
+/* ── TWEAKS PANEL ────────────────────────────────────── */
+.tweaks-panel{position:fixed;bottom:20px;right:20px;width:280px;
+  background:var(--card);border:1px solid var(--border-strong);border-radius:var(--r-md);
+  box-shadow:var(--shadow-lg);z-index:500;font-size:.78rem;
+  transform:translateY(20px);opacity:0;pointer-events:none;transition:all .25s;
+  max-height:calc(100vh - 40px);overflow:auto}
+.tweaks-panel.open{transform:none;opacity:1;pointer-events:auto}
+.tweaks-head{padding:12px 14px;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;background:var(--card);z-index:2}
+.tweaks-head h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--text);font-weight:700;display:flex;align-items:center;gap:7px}
+.tweaks-head h3::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%}
+.tweaks-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;
+  line-height:1;padding:2px 6px;border-radius:4px}
+.tweaks-close:hover{background:var(--card-soft);color:var(--text)}
+.tweaks-body{padding:8px 14px 14px}
+.tweak-group{padding:10px 0;border-bottom:1px solid var(--border-soft)}
+.tweak-group:last-child{border:none}
+.tweak-label{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);font-weight:700;margin-bottom:8px}
+.tweak-seg{display:flex;gap:3px;background:var(--card-soft);padding:3px;border-radius:7px;
+  border:1px solid var(--border-soft)}
+.tweak-seg button{flex:1;padding:6px 8px;background:transparent;border:0;color:var(--muted);
+  cursor:pointer;font-family:inherit;font-size:.7rem;font-weight:600;border-radius:5px;
+  transition:all .12s;text-align:center}
+.tweak-seg button:hover{color:var(--text)}
+.tweak-seg button.active{background:var(--accent);color:#fff}
+.tweak-swatches{display:flex;gap:8px}
+.tweak-swatch{flex:1;height:34px;border-radius:7px;cursor:pointer;border:2px solid transparent;
+  transition:all .15s;position:relative;overflow:hidden}
+.tweak-swatch::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--sw1),var(--sw2));border-radius:5px}
+.tweak-swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--bg),0 0 0 3px #fff}
+
+/* ── FOOTER ──────────────────────────────────────────── */
+.footer{text-align:center;padding:18px;color:var(--muted);font-size:.68rem;
+  border-top:1px solid var(--border);margin-top:18px}
+.footer span{color:var(--text-soft)}
+
+/* ── SCROLLBAR ──────────────────────────────────────── */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-strong)}
+</style>
+</head>
+<body>
+
+<!-- ══ PASSWORD GATE ══════════════════════════════════════════ -->
+<div id="pwGate" style="
+  display:flex;position:fixed;inset:0;z-index:9999;
+  background:#0d1117;align-items:center;justify-content:center;
+  flex-direction:column;gap:20px;font-family:system-ui,sans-serif;">
+  <div style="font-size:28px;font-weight:700;color:#fff;letter-spacing:.5px;">ST3 Telecoms</div>
+  <div style="font-size:13px;color:#8b949e;margin-top:-10px;">Dashboard — accès restreint</div>
+  <div style="display:flex;flex-direction:column;gap:10px;width:260px;margin-top:10px;">
+    <input id="pwInput" type="password" placeholder="Mot de passe"
+      autofocus autocomplete="current-password"
+      style="padding:10px 14px;border-radius:8px;border:1px solid #30363d;
+             background:#161b22;color:#fff;font-size:15px;outline:none;
+             text-align:center;letter-spacing:3px;"
+      onkeydown="if(event.key==='Enter')checkPw()">
+    <button onclick="checkPw()" style="
+      padding:10px;border-radius:8px;border:none;
+      background:#2f81f7;color:#fff;font-size:14px;font-weight:600;
+      cursor:pointer;">Accéder au dashboard</button>
+    <div id="pwErr" style="color:#f85149;font-size:12px;text-align:center;min-height:16px;"></div>
+  </div>
+</div>
+<script>
+(function(){
+  var PW = '1504';
+  var KEY = 'st3_auth';
+  if(localStorage.getItem(KEY) === PW){
+    document.getElementById('pwGate').style.display = 'none';
+  }
+  window.checkPw = function(){
+    var val = document.getElementById('pwInput').value;
+    if(val === PW){
+      localStorage.setItem(KEY, PW);
+      document.getElementById('pwGate').style.display = 'none';
+    } else {
+      document.getElementById('pwErr').textContent = 'Mot de passe incorrect';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  };
+})();
+</script>
+<!-- ══ END PASSWORD GATE ══════════════════════════════════════ -->
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 5h16M6 12h12M8 19h8" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="12" cy="12" r="2" fill="#fff"/>
+      </svg>
+    </div>
+    <div>
+      <h1><span class="brand">ST3</span> Telecoms</h1>
+      <div class="logo-sub">Fibre &amp; portails · Tableau de bord commercial</div>
+    </div>
+  </div>
+
+  <div class="header-mid">
+    <div class="status-pill" id="updateDiode">
+      <span class="pip" aria-hidden="true"></span>
+      <span class="lbl">Mis à jour</span>
+      <strong id="updateText">—</strong>
+      <span id="updateWarning"></span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="source-chip"><span class="dot"></span>Odoo 18 · <strong id="genDate"></strong></div>
+    <button class="tweaks-toggle" id="tweaksToggle" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      ⚙ Settings
+    </button>
+  </div>
+</div>
+
+<div class="period-bar">
+  <label>Période</label>
+  <div class="presets">
+    <button class="preset-btn" data-p="prevmonth" type="button">Mois préc.</button>
+    <button class="preset-btn" data-p="month" type="button">Ce mois</button>
+    <button class="preset-btn" data-p="q1" type="button">T1</button>
+    <button class="preset-btn" data-p="q2" type="button">T2</button>
+    <button class="preset-btn" data-p="q3" type="button">T3</button>
+    <button class="preset-btn" data-p="q4" type="button">T4</button>
+    <button class="preset-btn" data-p="y2024" type="button">2024</button>
+    <button class="preset-btn" data-p="y2025" type="button">2025</button>
+    <button class="preset-btn" data-p="y2026" type="button">2026</button>
+    <button class="preset-btn active" data-p="all" type="button">Tout</button>
+  </div>
+  <div class="date-range">
+    <span style="font-size:.72rem;color:var(--muted)">Du</span>
+    <input type="date" id="dateFrom">
+    <span style="font-size:.72rem;color:var(--muted)">au</span>
+    <input type="date" id="dateTo">
+    <button class="apply-btn" onclick="applyCustomRange()" type="button">OK</button>
+  </div>
+  <div class="compare-badge">vs préc. <span id="compareTxt">—</span></div>
+</div>
+
+<div class="container">
+
+  <!-- ══ SECTION 1 — ARGENT ══════════════════════════════ -->
+  <div class="section-title rise">
+    <span class="num">01</span>
+    <span class="ico">💰</span>
+    <span class="lbl">Argent</span>
+    <span class="rule"></span>
+    <span class="meta">Solde temps réel · impayés clients</span>
+  </div>
+
+  <div class="bank-wrap">
+    <div class="bank-card rise d1" id="bankCard" data-state="ok">
+      <div class="bank-head">
+        <div class="bank-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+          Solde bancaire
+        </div>
+        <div class="bank-state ok" id="bankState">Trésorerie OK</div>
+      </div>
+      <div class="bank-amount" id="bankAmount">—</div>
+      <div class="bank-sub" id="bankSub">—</div>
+      <div class="bank-accounts" id="bankAccounts"></div>
+    </div>
+
+    <!-- Pulse Portails -->
+    <div class="appel-card rise d2" id="pulsePortails" data-state="green">
+      <div class="appel-head">
+        <div class="appel-title"><span class="ico">🚪</span>Appels Portails</div>
+        <div class="appel-state-pill green" id="statePillPortails">À jour</div>
+      </div>
+      <div class="appel-body" id="bodyPortails"></div>
+      <div class="appel-footer">
+        <div class="col"><span class="k">Aujourd'hui</span><span class="v" id="todayPortails">0</span></div>
+        <div class="col"><span class="k">7 jours</span><span class="v" id="week7Portails">0</span></div>
+        <div class="col right"><span class="k">Dernier</span><span class="v" id="lastPortails">—</span></div>
+      </div>
+    </div>
+
+    <!-- Pulse Fibre -->
+    <div class="appel-card rise d3" id="pulseFibre" data-state="green">
+      <div class="appel-head">
+        <div class="appel-title"><span class="ico">📡</span>Appels Fibre &amp; autres</div>
+        <div class="appel-state-pill green" id="statePillFibre">À jour</div>
+      </div>
+      <div class="appel-body" id="bodyFibre"></div>
+      <div class="appel-footer">
+        <div class="col"><span class="k">Aujourd'hui</span><span class="v" id="todayFibre">0</span></div>
+        <div class="col"><span class="k">7 jours</span><span class="v" id="week7Fibre">0</span></div>
+        <div class="col right"><span class="k">Dernier</span><span class="v" id="lastFibre">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Impayés — suite Section 1 Argent -->
+  <div class="impayes-top" id="impayesTop"></div>
+  <div class="charts-row row-1">
+    <div class="impayes-card">
+      <div class="card-header" style="margin-bottom:8px">
+        <div class="card-title">Tous les impayés — triés par priorité</div>
+        <div class="card-badge" id="impayesBadge">—</div>
+      </div>
+      <table class="impayes-table" id="impayesTable">
+        <thead>
+          <tr>
+            <th style="width:28px"></th>
+            <th>Client</th>
+            <th style="text-align:right">Montant dû</th>
+            <th style="text-align:right">Nb factures</th>
+            <th style="text-align:right">Plus vieille</th>
+          </tr>
+        </thead>
+        <tbody id="impayesTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ SECTION 2 — ACTIVITÉ COMMERCIALE ════════════════ -->
+  <div class="section-title rise">
+    <span class="num">02</span>
+    <span class="ico">📞</span>
+    <span class="lbl">Activité commerciale</span>
+    <span class="rule"></span>
+    <span class="meta" id="impayesMeta">Appels · carnet de commandes · devis</span>
+  </div>
+
+  <!-- Compteurs appels Portails + Fibre -->
+  <div class="gauges-strip">
+    <div class="appel-card rise d2" id="pulsePortails" data-state="green">
+      <div class="appel-head">
+        <div class="appel-title"><span class="ico">🚪</span>Appels Portails</div>
+        <div class="appel-state-pill green" id="statePillPortails">À jour</div>
+      </div>
+      <div class="appel-body" id="bodyPortails"></div>
+      <div class="appel-footer">
+        <div class="col"><span class="k">Aujourd'hui</span><span class="v" id="todayPortails">0</span></div>
+        <div class="col"><span class="k">7 jours</span><span class="v" id="week7Portails">0</span></div>
+        <div class="col right"><span class="k">Dernier</span><span class="v" id="lastPortails">—</span></div>
+      </div>
+    </div>
+    <div class="appel-card rise d3" id="pulseFibre" data-state="green">
+      <div class="appel-head">
+        <div class="appel-title"><span class="ico">📡</span>Appels Fibre &amp; autres</div>
+        <div class="appel-state-pill green" id="statePillFibre">À jour</div>
+      </div>
+      <div class="appel-body" id="bodyFibre"></div>
+      <div class="appel-footer">
+        <div class="col"><span class="k">Aujourd'hui</span><span class="v" id="todayFibre">0</span></div>
+        <div class="col"><span class="k">7 jours</span><span class="v" id="week7Fibre">0</span></div>
+        <div class="col right"><span class="k">Dernier</span><span class="v" id="lastFibre">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Carnet de commandes + Devis vieillissants — placeholders Lot 4 -->
+  <div class="charts-row row-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Carnet de commandes</div>
+        <div class="card-badge" id="backlogBadge">—</div>
+      </div>
+      <div id="backlogContent" style="color:var(--muted);padding:24px 0;text-align:center;font-size:.85rem">
+        Données disponibles dès le Lot 4
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⏰ Devis vieillissants (&gt;21j)</div>
+        <div class="card-badge" id="oldQuotesBadge">—</div>
+      </div>
+      <div id="oldQuotesContent" style="color:var(--muted);padding:24px 0;text-align:center;font-size:.85rem">
+        Données disponibles dès le Lot 4
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECTION 3 — ACTIVITÉ PASSÉE ══════════════════════ -->
+  <div class="section-title rise">
+    <span class="num">03</span>
+    <span class="ico">📋</span>
+    <span class="lbl">Activité passée</span>
+    <span class="rule"></span>
+    <span class="meta" id="kpiMeta">vs période précédente</span>
+  </div>
+  <div class="kpi-hero-grid" id="heroGrid"></div>
+  <div class="kpi-sec-grid" id="secGrid"></div>
+
+  <!-- ══ SECTION 4 — OÙ VA L'ARGENT ══════════════════════ -->
+  <div class="section-title rise">
+    <span class="num">04</span>
+    <span class="ico">🥧</span>
+    <span class="lbl">Où va l'argent</span>
+    <span class="rule"></span>
+    <span class="meta">Répartition des dépenses par catégorie</span>
+  </div>
+  <div class="charts-row row-1">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Répartition des dépenses</div>
+      </div>
+      <div id="bankCategoriesContent" style="color:var(--muted);padding:40px 0;text-align:center;font-size:.85rem">
+        Données disponibles dès le Lot 8 · catégorisation des relevés bancaires en cours de configuration
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SECTION 5 — ANALYSE ══════════════════════════════ -->
+  <div class="section-title rise">
+    <span class="num">05</span>
+    <span class="ico">📈</span>
+    <span class="lbl">Analyse</span>
+    <span class="rule"></span>
+  </div>
+
+  <div class="charts-row row-3">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">CA mensuel HT &amp; TTC</div>
+        <div class="card-badge" id="b1"></div>
+      </div>
+      <canvas id="caChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Statuts factures</div></div>
+      <canvas id="statusChart" style="max-height:150px"></canvas>
+      <div id="statusLegend" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Taux d'encaissement</div></div>
+      <div class="gauge-wrap">
+        <canvas id="gaugeChart" style="max-height:150px"></canvas>
+        <div class="gauge-pct" id="gaugePct">—</div>
+        <div class="gauge-label">des montants encaissés</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-row row-2b">
+    <div class="card">
+      <div class="card-header"><div class="card-title">CA HT cumulé sur la période</div></div>
+      <canvas id="cumulChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Distribution des montants</div></div>
+      <canvas id="distChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row row-2">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Ancienneté des créances (nb factures)</div></div>
+      <canvas id="agingChart"></canvas>
+      <div id="agingStats" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Avoirs émis par mois</div></div>
+      <canvas id="refundChart"></canvas>
+      <div id="refundStats" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <div class="charts-row row-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Top clients — CA vs Encaissé</div>
+        <div class="card-badge" id="b2"></div>
+      </div>
+      <canvas id="clientChart"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Classement clients</div>
+        <div class="card-badge" id="b3"></div>
+      </div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
+  </div>
+
+  <div class="charts-row row-1">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">CA HT mensuel — 2024 · 2025 · 2026</div>
+        <div class="card-badge" id="bYear">toutes données</div>
+      </div>
+      <canvas id="yearChart" style="max-height:280px"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ TWEAKS PANEL ════════════════════════════════════ -->
+<div class="tweaks-panel" id="tweaksPanel">
+  <div class="tweaks-head">
+    <h3>⚙ Settings</h3>
+    <button class="tweaks-close" id="tweaksClose" type="button">✕</button>
+  </div>
+  <div class="tweaks-body">
+    <div class="tweak-group">
+      <div class="tweak-label">Style compteurs appels</div>
+      <div class="tweak-seg" data-tweak="gaugeStyle">
+        <button data-v="classic" type="button">Compteur</button>
+        <button data-v="radial" type="button">Radial</button>
+        <button data-v="bar" type="button">Bar</button>
+      </div>
+    </div>
+    <div class="tweak-group">
+      <div class="tweak-label">Densité</div>
+      <div class="tweak-seg" data-tweak="density">
+        <button data-v="comfort" type="button">Confort</button>
+        <button data-v="compact" type="button">Compact</button>
+      </div>
+    </div>
+    <div class="tweak-group">
+      <div class="tweak-label">Palette d'accent</div>
+      <div class="tweak-swatches" data-tweak="palette">
+        <div class="tweak-swatch" data-v="blue"  style="--sw1:#2f81f7;--sw2:#39d353" title="Bleu / vert (défaut)"></div>
+        <div class="tweak-swatch" data-v="amber" style="--sw1:#f7b955;--sw2:#bc8cff" title="Ambre / violet"></div>
+        <div class="tweak-swatch" data-v="cyber" style="--sw1:#56d4dd;--sw2:#f778ba" title="Cyan / rose"></div>
+      </div>
+    </div>
+    <div class="tweak-group">
+      <div class="tweak-label">Compacter le top 3 urgents</div>
+      <div class="tweak-seg" data-tweak="urgent">
+        <button data-v="show" type="button">Affiché</button>
+        <button data-v="hide" type="button">Masqué</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SVG defs partagées (gradients gauges) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="gradRed" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f85149" stop-opacity=".85"/>
+      <stop offset="100%" stop-color="#f85149" stop-opacity=".45"/>
+    </linearGradient>
+    <linearGradient id="gradOrange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e3b341" stop-opacity=".5"/>
+      <stop offset="100%" stop-color="#e3b341" stop-opacity=".75"/>
+    </linearGradient>
+    <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3fb950" stop-opacity=".5"/>
+      <stop offset="100%" stop-color="#3fb950" stop-opacity=".9"/>
+    </linearGradient>
+    <radialGradient id="gradPivot" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e6edf3"/>
+      <stop offset="100%" stop-color="#6e7681"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<div class="footer">
+  Dashboard ST3 Telecoms · Données Odoo 18 Enterprise · <span id="footerDate"></span>
+  &nbsp;·&nbsp;
+  <span style="color:var(--muted);font-size:.65rem">
+    ⓘ Deltas calculés sur la période précédente de même durée
+  </span>
+</div>
+
+<script>
+// ── DONNÉES ──────────────────────────────────────────
+const RAW_INVS    = [{"id":3510,"date":"2026-05-19","due":"2026-05-19","partner":"Mr Le Pavec","ht":125.0,"tva":12.5,"ttc":137.5,"residual":137.5,"status":"not_paid"},{"id":3509,"date":"2026-05-19","due":"2026-05-19","partner":"Mr Sluysmans","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3476,"date":"2026-05-18","due":"2026-05-18","partner":"Mr Aprin","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3475,"date":"2026-05-18","due":"2026-05-18","partner":"Copropriété Isis Europa","ht":1798.5,"tva":179.85,"ttc":1978.35,"residual":1978.35,"status":"not_paid"},{"id":3474,"date":"2026-05-15","due":"2026-05-15","partner":"Agence STI","ht":518.4,"tva":103.68,"ttc":622.08,"residual":622.08,"status":"not_paid"},{"id":3473,"date":"2026-05-13","due":"2026-05-13","partner":"Mr PRICE","ht":572.7,"tva":57.27,"ttc":629.97,"residual":0,"status":"paid"},{"id":3472,"date":"2026-05-12","due":"2026-05-12","partner":"Mr Kikmoun","ht":452.0,"tva":45.2,"ttc":497.2,"residual":497.2,"status":"not_paid"},{"id":3471,"date":"2026-05-11","due":"2026-05-11","partner":"SCI la filature","ht":358.8,"tva":71.76,"ttc":430.56,"residual":0,"status":"paid"},{"id":3470,"date":"2026-05-11","due":"2026-05-11","partner":"Mr Nielsen","ht":685.0,"tva":68.5,"ttc":753.5,"residual":0,"status":"paid"},{"id":3469,"date":"2026-05-11","due":"2026-05-11","partner":"Mr Leon","ht":618.0,"tva":61.8,"ttc":679.8,"residual":0,"status":"paid"},{"id":3468,"date":"2026-05-11","due":"2026-05-11","partner":"Foncia Littoral","ht":1290.0,"tva":129.0,"ttc":1419.0,"residual":1419.0,"status":"not_paid"},{"id":3467,"date":"2026-05-11","due":"2026-05-11","partner":"Mr Genevieve","ht":665.48,"tva":66.55,"ttc":732.03,"residual":0,"status":"paid"},{"id":3466,"date":"2026-05-05","due":"2026-05-05","partner":"Mme Sigier","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3465,"date":"2026-05-04","due":"2026-05-04","partner":"Mme Roussel","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3463,"date":"2026-04-28","due":"2026-04-28","partner":"Mme Steck","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3462,"date":"2026-04-28","due":"2026-04-28","partner":"Mr Genevieve","ht":450.0,"tva":45.0,"ttc":495.0,"residual":0,"status":"paid"},{"id":3461,"date":"2026-04-27","due":"2026-04-27","partner":"Mr Barral-Baron","ht":972.54,"tva":97.25,"ttc":1069.79,"residual":0,"status":"paid"},{"id":3460,"date":"2026-04-27","due":"2026-04-27","partner":"SMART-SERVICES","ht":652.8,"tva":130.56,"ttc":783.36,"residual":0,"status":"paid"},{"id":3457,"date":"2026-04-24","due":"2026-04-24","partner":"Mme Clanet","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3456,"date":"2026-04-24","due":"2026-04-24","partner":"Mr Kikmoun","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3455,"date":"2026-04-24","due":"2026-04-24","partner":"Mr Vallet","ht":514.15,"tva":51.42,"ttc":565.57,"residual":0,"status":"paid"},{"id":3454,"date":"2026-04-23","due":"2026-04-23","partner":"Mr DRANGUET","ht":580.5,"tva":58.05,"ttc":638.55,"residual":638.55,"status":"not_paid"},{"id":3453,"date":"2026-04-23","due":"2026-04-23","partner":"Copropriété Isis Europa","ht":913.0,"tva":91.3,"ttc":1004.3,"residual":1004.3,"status":"not_paid"},{"id":3452,"date":"2026-04-23","due":"2026-04-23","partner":"Copropriété Isis Europa","ht":3285.7,"tva":328.57,"ttc":3614.27,"residual":3614.27,"status":"not_paid"},{"id":3451,"date":"2026-04-21","due":"2026-04-21","partner":"SMART-SERVICES","ht":666.0,"tva":133.2,"ttc":799.2,"residual":0,"status":"not_paid"},{"id":3450,"date":"2026-04-21","due":"2026-04-21","partner":"Agence STI","ht":166.67,"tva":33.33,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3448,"date":"2026-04-21","due":"2026-04-21","partner":"Sdc Le Cottage Domis Montpellier","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3447,"date":"2026-04-20","due":"2026-04-20","partner":"Agence STI","ht":166.67,"tva":33.33,"ttc":200.0,"residual":0,"status":"not_paid"},{"id":3446,"date":"2026-04-20","due":"2026-04-20","partner":"Mr Catelon","ht":787.15,"tva":78.72,"ttc":865.87,"residual":0,"status":"paid"},{"id":3445,"date":"2026-04-20","due":"2026-04-20","partner":"Mr Ribas Serge","ht":90.91,"tva":9.09,"ttc":100.0,"residual":100.0,"status":"not_paid"},{"id":3444,"date":"2026-04-20","due":"2026-04-20","partner":"Mme Christiaens","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3443,"date":"2026-04-20","due":"2026-04-20","partner":"Mr Cavallari","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":3442,"date":"2026-04-20","due":"2026-04-20","partner":"Mme Perret","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3441,"date":"2026-04-20","due":"2026-04-20","partner":"Mr Dumas","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3440,"date":"2026-04-20","due":"2026-04-20","partner":"Mr Dumay","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3439,"date":"2026-04-20","due":"2026-04-20","partner":"Mr Catelon","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3438,"date":"2026-04-14","due":"2026-04-14","partner":"Mme Vialle","ht":267.0,"tva":26.7,"ttc":293.7,"residual":293.7,"status":"not_paid"},{"id":3433,"date":"2026-04-13","due":"2026-04-13","partner":"BET AM","ht":559.0,"tva":111.8,"ttc":670.8,"residual":670.8,"status":"not_paid"},{"id":3432,"date":"2026-04-09","due":"2026-04-09","partner":"Surho Architecture","ht":559.0,"tva":111.8,"ttc":670.8,"residual":0,"status":"not_paid"},{"id":3430,"date":"2026-04-09","due":"2026-04-09","partner":"Surho Architecture","ht":724.0,"tva":144.8,"ttc":868.8,"residual":868.8,"status":"not_paid"},{"id":3429,"date":"2026-04-09","due":"2026-04-09","partner":"SCI la Domitienne","ht":166.67,"tva":33.33,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3428,"date":"2026-04-08","due":"2026-04-08","partner":"Agence STI","ht":166.67,"tva":33.33,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3427,"date":"2026-04-08","due":"2026-04-08","partner":"Agence STI","ht":125.0,"tva":25.0,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3426,"date":"2026-04-08","due":"2026-04-08","partner":"Mr Casteur","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3425,"date":"2026-04-08","due":"2026-04-08","partner":"Mme Marulier","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3424,"date":"2026-04-08","due":"2026-04-08","partner":"Agence STI","ht":166.67,"tva":33.33,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3422,"date":"2026-04-08","due":"2026-04-08","partner":"Agence STI","ht":136.36,"tva":27.27,"ttc":163.63,"residual":0,"status":"not_paid"},{"id":3419,"date":"2026-04-08","due":"2026-04-08","partner":"Boukaker Lathuile","ht":300.0,"tva":30.0,"ttc":330.0,"residual":330.0,"status":"not_paid"},{"id":3418,"date":"2026-04-08","due":"2026-04-08","partner":"Boukaker Lathuile","ht":300.0,"tva":60.0,"ttc":360.0,"residual":0,"status":"not_paid"},{"id":3417,"date":"2026-04-07","due":"2026-04-07","partner":"Mr Lopes","ht":510.0,"tva":51.0,"ttc":561.0,"residual":0,"status":"paid"},{"id":3416,"date":"2026-04-07","due":"2026-04-07","partner":"Copropriété Isis Europa","ht":1340.35,"tva":134.03,"ttc":1474.38,"residual":1474.38,"status":"not_paid"},{"id":3415,"date":"2026-04-07","due":"2026-04-07","partner":"Mr Robert Guy","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3414,"date":"2026-04-07","due":"2026-04-07","partner":"Mr Robert Guy","ht":610.0,"tva":61.0,"ttc":671.0,"residual":671.0,"status":"not_paid"},{"id":3413,"date":"2026-04-07","due":"2026-04-07","partner":"Mr Girot","ht":893.0,"tva":89.3,"ttc":982.3,"residual":982.3,"status":"not_paid"},{"id":3410,"date":"2026-04-07","due":"2026-04-07","partner":"Mr Girot","ht":70.0,"tva":7.0,"ttc":77.0,"residual":77.0,"status":"not_paid"},{"id":3409,"date":"2026-04-07","due":"2026-04-07","partner":"Mme Libert Colas Laurence","ht":1127.5,"tva":112.75,"ttc":1240.25,"residual":0,"status":"paid"},{"id":3408,"date":"2026-03-30","due":"2026-03-30","partner":"Mr Pellequer","ht":729.06,"tva":72.91,"ttc":801.97,"residual":0,"status":"paid"},{"id":3406,"date":"2026-03-27","due":"2026-03-27","partner":"Mr Girot","ht":823.0,"tva":82.3,"ttc":905.3,"residual":905.3,"status":"not_paid"},{"id":3405,"date":"2026-03-27","due":"2026-03-27","partner":"Mr Pellequer","ht":796.56,"tva":79.66,"ttc":876.22,"residual":0,"status":"not_paid"},{"id":3404,"date":"2026-03-25","due":"2026-03-25","partner":"Mr Fabre","ht":1202.8,"tva":120.28,"ttc":1323.08,"residual":1323.08,"status":"not_paid"},{"id":3403,"date":"2026-03-23","due":"2026-03-23","partner":"Mme CLARAC","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3402,"date":"2026-03-23","due":"2026-03-23","partner":"Mme CLARAC","ht":569.6,"tva":56.96,"ttc":626.56,"residual":0,"status":"paid"},{"id":3401,"date":"2026-03-20","due":"2026-03-20","partner":"Mr Malaval Remy","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3398,"date":"2026-03-18","due":"2026-03-18","partner":"Christian Houlfort","ht":125.0,"tva":25.0,"ttc":150.0,"residual":0,"status":"paid"},{"id":3397,"date":"2026-03-18","due":"2026-03-18","partner":"Mr Seiler","ht":125.0,"tva":25.0,"ttc":150.0,"residual":0,"status":"paid"},{"id":3395,"date":"2026-03-18","due":"2026-03-18","partner":"Marco Magali","ht":90.91,"tva":9.09,"ttc":100.0,"residual":0,"status":"paid"},{"id":3291,"date":"2026-03-18","due":"2026-02-13","partner":"Barbier Johan","ht":218.18,"tva":21.82,"ttc":240.0,"residual":0,"status":"paid"},{"id":3390,"date":"2026-03-18","due":"2026-03-18","partner":"Mr Pardi  Stefano","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":3389,"date":"2026-03-18","due":"2026-03-18","partner":"Mme et Mr Roucairol","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3388,"date":"2026-03-18","due":"2026-03-18","partner":"Mr Robert Crespo","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3387,"date":"2026-03-16","due":"2026-03-16","partner":"SMART-SERVICES","ht":694.26,"tva":138.85,"ttc":833.11,"residual":833.11,"status":"not_paid"},{"id":3386,"date":"2026-03-13","due":"2026-03-13","partner":"Mr Hervé Ludovic de Lys","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3385,"date":"2026-03-13","due":"2026-03-13","partner":"Mr Le Bail","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3384,"date":"2026-03-13","due":"2026-03-13","partner":"Mr Bussier","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3383,"date":"2026-03-12","due":"2026-03-12","partner":"Mme GEROLIMATOS","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3381,"date":"2026-03-11","due":"2026-03-11","partner":"SCI la filature","ht":136.37,"tva":13.63,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3380,"date":"2026-03-11","due":"2026-03-11","partner":"Mr PRICE","ht":381.8,"tva":38.18,"ttc":419.98,"residual":0,"status":"paid"},{"id":3379,"date":"2026-03-10","due":"2026-03-10","partner":"Les Jardins de Beaumont","ht":2383.94,"tva":238.39,"ttc":2622.33,"residual":2622.33,"status":"not_paid"},{"id":3378,"date":"2026-03-10","due":"2026-03-10","partner":"Jérôme BILLARD  SARL PROMETHEUS","ht":2057.41,"tva":411.48,"ttc":2468.89,"residual":2468.89,"status":"not_paid"},{"id":3377,"date":"2026-03-10","due":"2026-03-10","partner":"Poiré Julien","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3374,"date":"2026-03-10","due":"2026-03-10","partner":"2H energy","ht":166.67,"tva":33.33,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3373,"date":"2026-03-10","due":"2026-03-10","partner":"SMART-SERVICES","ht":739.0,"tva":147.8,"ttc":886.8,"residual":886.8,"status":"not_paid"},{"id":3372,"date":"2026-03-10","due":"2026-03-10","partner":"SMART-SERVICES","ht":326.0,"tva":65.2,"ttc":391.2,"residual":391.2,"status":"not_paid"},{"id":3371,"date":"2026-03-10","due":"2026-03-10","partner":"Mr Fabre","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":3370,"date":"2026-03-09","due":"2026-03-09","partner":"Mme Le Forestier","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":3322,"date":"2026-03-09","due":"2026-02-18","partner":"Mme Le Forestier","ht":746.0,"tva":74.6,"ttc":820.6,"residual":0,"status":"paid"},{"id":3369,"date":"2026-03-04","due":"2026-03-04","partner":"Mme Libert Colas Laurence","ht":922.5,"tva":92.25,"ttc":1014.75,"residual":0,"status":"paid"},{"id":3368,"date":"2026-03-04","due":"2026-03-04","partner":"BMF HOTEL ABELIA","ht":140.0,"tva":28.0,"ttc":168.0,"residual":0,"status":"paid"},{"id":3363,"date":"2026-03-03","due":"2026-03-03","partner":"M Poznansky","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3362,"date":"2026-03-03","due":"2026-03-03","partner":"Face LR","ht":140.0,"tva":28.0,"ttc":168.0,"residual":168.0,"status":"not_paid"},{"id":3361,"date":"2026-03-03","due":"2026-03-03","partner":"Face LR","ht":282.0,"tva":56.4,"ttc":338.4,"residual":338.4,"status":"not_paid"},{"id":3353,"date":"2026-03-02","due":"2026-03-02","partner":"Mr Barral-Baron","ht":648.36,"tva":64.84,"ttc":713.2,"residual":713.2,"status":"not_paid"},{"id":3341,"date":"2026-02-27","due":"2026-02-27","partner":"Mme Chevalier","ht":443.0,"tva":44.3,"ttc":487.3,"residual":0,"status":"paid"},{"id":3338,"date":"2026-02-26","due":"2026-02-26","partner":"Mme Licari","ht":923.45,"tva":92.34,"ttc":1015.79,"residual":0,"status":"paid"},{"id":3332,"date":"2026-02-23","due":"2026-02-23","partner":"Mme Christiaens","ht":639.0,"tva":63.9,"ttc":702.9,"residual":0,"status":"paid"},{"id":3328,"date":"2026-02-19","due":"2026-02-19","partner":"Copropriété Le Babylone","ht":3600.0,"tva":360.0,"ttc":3960.0,"residual":0,"status":"paid"},{"id":3327,"date":"2026-02-19","due":"2026-02-19","partner":"Copropriété Le Babylone","ht":3536.8,"tva":353.68,"ttc":3890.48,"residual":3890.48,"status":"not_paid"},{"id":3296,"date":"2026-02-13","due":"2026-02-13","partner":"M Autier","ht":163.64,"tva":16.36,"ttc":180.0,"residual":0,"status":"paid"},{"id":3295,"date":"2026-02-13","due":"2026-02-13","partner":"M Sibony","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3294,"date":"2026-02-13","due":"2026-02-13","partner":"Mme Christiaens","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3293,"date":"2026-02-13","due":"2026-02-13","partner":"M Lemaitre Herve","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3292,"date":"2026-02-13","due":"2026-02-13","partner":"Mme Rosine","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3290,"date":"2026-02-13","due":"2026-02-13","partner":"M Riera","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3289,"date":"2026-02-13","due":"2026-02-13","partner":"M Vedel","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3288,"date":"2026-02-13","due":"2026-02-13","partner":"Mme Nicollet","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3287,"date":"2026-02-13","due":"2026-02-13","partner":"Mr Seiler","ht":125.0,"tva":25.0,"ttc":150.0,"residual":0,"status":"paid"},{"id":3281,"date":"2026-02-12","due":"2026-02-12","partner":"Les Jardins de Beaumont","ht":6012.66,"tva":601.27,"ttc":6613.93,"residual":6613.93,"status":"not_paid"},{"id":3266,"date":"2026-02-09","due":"2026-02-09","partner":"Mme Licari","ht":755.55,"tva":75.56,"ttc":831.11,"residual":0,"status":"paid"},{"id":3249,"date":"2026-02-05","due":"2026-02-05","partner":"Mr Vialatte","ht":450.0,"tva":45.0,"ttc":495.0,"residual":0,"status":"paid"},{"id":3239,"date":"2026-02-04","due":"2026-02-04","partner":"Mme Gonzalez","ht":653.0,"tva":65.3,"ttc":718.3,"residual":718.3,"status":"not_paid"},{"id":3238,"date":"2026-02-04","due":"2026-02-04","partner":"Mme Gonzalez","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":3237,"date":"2026-02-04","due":"2026-02-04","partner":"Mme Gonzalez","ht":833.0,"tva":83.3,"ttc":916.3,"residual":198.0,"status":"partial"},{"id":3236,"date":"2026-02-04","due":"2026-02-04","partner":"Mr Pellequer","ht":651.74,"tva":65.17,"ttc":716.91,"residual":0,"status":"paid"},{"id":3235,"date":"2026-02-04","due":"2026-02-04","partner":"Mr Jean Dudek","ht":774.4,"tva":77.44,"ttc":851.84,"residual":0,"status":"paid"},{"id":3234,"date":"2026-02-04","due":"2026-02-04","partner":"Mr Vialatte","ht":450.0,"tva":45.0,"ttc":495.0,"residual":0,"status":"not_paid"},{"id":3218,"date":"2026-01-30","due":"2026-01-29","partner":"Mme Pernot sous la tutelle de Mme Sylvie Pernot","ht":125.0,"tva":25.0,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":3220,"date":"2026-01-29","due":"2026-01-29","partner":"Mr Carre","ht":636.74,"tva":63.67,"ttc":700.41,"residual":0,"status":"paid"},{"id":3203,"date":"2026-01-23","due":"2026-01-23","partner":"Face LR","ht":1198.1,"tva":239.62,"ttc":1437.72,"residual":1437.72,"status":"not_paid"},{"id":3182,"date":"2026-01-19","due":"2026-01-19","partner":"Mme Santangelo","ht":1507.0,"tva":150.7,"ttc":1657.7,"residual":0,"status":"paid"},{"id":3172,"date":"2026-01-15","due":"2026-01-15","partner":"Mme Pinet Amélie","ht":1386.9,"tva":138.69,"ttc":1525.59,"residual":0,"status":"paid"},{"id":3171,"date":"2026-01-15","due":"2026-01-15","partner":"Mme Leroy","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3170,"date":"2026-01-15","due":"2026-01-15","partner":"Jérôme BILLARD  SARL PROMETHEUS","ht":1222.89,"tva":244.58,"ttc":1467.47,"residual":733.73,"status":"partial"},{"id":3169,"date":"2026-01-15","due":"2026-01-15","partner":"AGROPOLIS INTERNATIONAL","ht":699.0,"tva":139.8,"ttc":838.8,"residual":0,"status":"paid"},{"id":3158,"date":"2026-01-13","due":"2026-01-13","partner":"SDC PORT AMBONNE - Cap d'Agde CHEZ LOGESYC - Agence des 4 cantons Résidence Les Tenilles -","ht":880.0,"tva":88.0,"ttc":968.0,"residual":0,"status":"paid"},{"id":3152,"date":"2026-01-12","due":"2026-01-12","partner":"Mr Carre","ht":424.5,"tva":42.45,"ttc":466.95,"residual":0,"status":"paid"},{"id":3147,"date":"2026-01-10","due":"2026-01-10","partner":"Stéphane Vincent Cantoni","ht":870.0,"tva":87.0,"ttc":957.0,"residual":0,"status":"paid"},{"id":3138,"date":"2026-01-07","due":"2026-01-07","partner":"Copropriété Isis Europa","ht":1471.5,"tva":147.15,"ttc":1618.65,"residual":1618.65,"status":"not_paid"},{"id":3137,"date":"2026-01-07","due":"2026-01-07","partner":"Copropriété Isis Europa","ht":2688.3,"tva":268.83,"ttc":2957.13,"residual":2957.13,"status":"not_paid"},{"id":3136,"date":"2026-01-07","due":"2026-01-07","partner":"Copropriété Isis Europa","ht":747.0,"tva":74.7,"ttc":821.7,"residual":821.7,"status":"not_paid"},{"id":3135,"date":"2026-01-07","due":"2026-01-07","partner":"Copropriété Isis Europa","ht":1096.65,"tva":109.67,"ttc":1206.32,"residual":1206.32,"status":"not_paid"},{"id":3134,"date":"2026-01-07","due":"2026-01-07","partner":"Mr Brun","ht":591.7,"tva":59.17,"ttc":650.87,"residual":0,"status":"paid"},{"id":3121,"date":"2026-01-05","due":"2026-01-05","partner":"Les Jardins de Beaumont","ht":3628.72,"tva":362.87,"ttc":3991.59,"residual":0,"status":"paid"},{"id":3086,"date":"2025-12-18","due":"2025-12-18","partner":"SDC LE PARADOR  S/C FONCIA","ht":180.0,"tva":36.0,"ttc":216.0,"residual":216.0,"status":"not_paid"},{"id":3085,"date":"2025-12-18","due":"2025-12-18","partner":"Mr Cathala Jean Paul","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3080,"date":"2025-12-18","due":"2025-12-18","partner":"FONCIA TERRE OCCITANE","ht":540.0,"tva":54.0,"ttc":594.0,"residual":0,"status":"paid"},{"id":3079,"date":"2025-12-18","due":"2025-12-18","partner":"Mr Cathala Jean Paul","ht":412.0,"tva":41.2,"ttc":453.2,"residual":0,"status":"paid"},{"id":3072,"date":"2025-12-16","due":"2025-12-16","partner":"Mr Alcojor Thomas et Mme Vanbutsele Océane","ht":470.06,"tva":94.01,"ttc":564.07,"residual":0,"status":"paid"},{"id":3058,"date":"2025-12-12","due":"2025-12-12","partner":"KFM Toiture peinture étanchéité Mr Kerherno Franck","ht":672.5,"tva":134.5,"ttc":807.0,"residual":0,"status":"paid"},{"id":3044,"date":"2025-12-09","due":"2025-12-09","partner":"Mr Vede","ht":723.0,"tva":72.3,"ttc":795.3,"residual":0,"status":"paid"},{"id":3043,"date":"2025-12-09","due":"2025-12-09","partner":"Mme de Agostini","ht":1289.25,"tva":128.93,"ttc":1418.18,"residual":0,"status":"paid"},{"id":3034,"date":"2025-12-08","due":"2025-12-08","partner":"Modjoe RH","ht":653.0,"tva":130.6,"ttc":783.6,"residual":0,"status":"paid"},{"id":3033,"date":"2025-12-08","due":"2025-12-08","partner":"M. Le Corre","ht":754.0,"tva":75.4,"ttc":829.4,"residual":0,"status":"paid"},{"id":3028,"date":"2025-12-05","due":"2025-12-05","partner":"KFM Toiture peinture étanchéité Mr Kerherno Franck","ht":1842.5,"tva":368.5,"ttc":2211.0,"residual":2211.0,"status":"not_paid"},{"id":3021,"date":"2025-12-04","due":"2025-12-04","partner":"Mr Alfi Arthur","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":3010,"date":"2025-12-02","due":"2025-12-02","partner":"Mme de Agostini","ht":1367.7,"tva":136.77,"ttc":1504.47,"residual":1504.47,"status":"not_paid"},{"id":3000,"date":"2025-11-28","due":"2025-11-28","partner":"Face LR","ht":1960.0,"tva":392.0,"ttc":2352.0,"residual":0,"status":"paid"},{"id":2990,"date":"2025-11-21","due":"2025-11-21","partner":"PACA IMMO","ht":681.5,"tva":136.3,"ttc":817.8,"residual":0,"status":"paid"},{"id":2970,"date":"2025-11-14","due":"2025-11-14","partner":"Mme Nicollet","ht":185.87,"tva":18.58,"ttc":204.45,"residual":0,"status":"paid"},{"id":2969,"date":"2025-11-14","due":"2025-11-14","partner":"Mme Fernandes","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":2968,"date":"2025-11-14","due":"2025-11-14","partner":"Mr Fusch","ht":294.91,"tva":29.49,"ttc":324.4,"residual":0,"status":"paid"},{"id":2966,"date":"2025-11-13","due":"2025-11-13","partner":"Laffut Didier","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":2963,"date":"2025-11-13","due":"2025-11-13","partner":"Mme. Pichet","ht":405.0,"tva":40.5,"ttc":445.5,"residual":0,"status":"paid"},{"id":2962,"date":"2025-11-13","due":"2025-11-13","partner":"Mme BARTAL Saïda","ht":405.0,"tva":40.5,"ttc":445.5,"residual":0,"status":"paid"},{"id":2961,"date":"2025-11-13","due":"2025-11-13","partner":"Mr Do Claude","ht":290.0,"tva":29.0,"ttc":319.0,"residual":0,"status":"paid"},{"id":2960,"date":"2025-11-13","due":"2025-11-13","partner":"SMART-SERVICES","ht":110.0,"tva":22.0,"ttc":132.0,"residual":0,"status":"paid"},{"id":2959,"date":"2025-11-13","due":"2025-11-13","partner":"SCI la filature","ht":507.08,"tva":50.72,"ttc":557.8,"residual":0,"status":"paid"},{"id":2927,"date":"2025-11-05","due":"2025-11-05","partner":"SMART-SERVICES","ht":489.4,"tva":97.88,"ttc":587.28,"residual":587.28,"status":"not_paid"},{"id":2925,"date":"2025-11-05","due":"2025-11-05","partner":"SMART-SERVICES","ht":359.4,"tva":71.88,"ttc":431.28,"residual":0,"status":"paid"},{"id":2924,"date":"2025-11-05","due":"2025-11-05","partner":"Mme Touzé","ht":780.15,"tva":78.02,"ttc":858.17,"residual":0,"status":"paid"},{"id":2894,"date":"2025-10-31","due":"2025-10-31","partner":"SCI la filature","ht":1014.14,"tva":101.41,"ttc":1115.55,"residual":0,"status":"paid"},{"id":2877,"date":"2025-10-29","due":"2025-10-29","partner":"Mr Falanga","ht":2077.76,"tva":207.78,"ttc":2285.54,"residual":0,"status":"paid"},{"id":2871,"date":"2025-10-28","due":"2025-10-28","partner":"Tchaikowsky Regine","ht":986.0,"tva":98.6,"ttc":1084.6,"residual":0,"status":"paid"},{"id":2870,"date":"2025-10-28","due":"2025-10-28","partner":"Salaville Estelle","ht":840.0,"tva":84.0,"ttc":924.0,"residual":0,"status":"paid"},{"id":2869,"date":"2025-10-28","due":"2025-10-28","partner":"SMART-SERVICES","ht":479.0,"tva":95.8,"ttc":574.8,"residual":0,"status":"paid"},{"id":2868,"date":"2025-10-28","due":"2025-10-28","partner":"SMART-SERVICES","ht":489.4,"tva":97.88,"ttc":587.28,"residual":0,"status":"not_paid"},{"id":2852,"date":"2025-10-24","due":"2025-10-24","partner":"Mme Touzé","ht":227.27,"tva":22.73,"ttc":250.0,"residual":0,"status":"paid"},{"id":2838,"date":"2025-10-22","due":"2025-10-22","partner":"Mr Daumergue","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2837,"date":"2025-10-22","due":"2025-10-22","partner":"Mme Chombeau","ht":2548.6,"tva":254.86,"ttc":2803.46,"residual":0,"status":"paid"},{"id":2836,"date":"2025-10-22","due":"2025-10-22","partner":"Mme Anne Viciano","ht":141.67,"tva":28.33,"ttc":170.0,"residual":0,"status":"paid"},{"id":2691,"date":"2025-10-21","due":"2025-10-21","partner":"SARL Minalice","ht":920.16,"tva":184.04,"ttc":1104.2,"residual":3.24,"status":"partial"},{"id":2690,"date":"2025-10-17","due":"2025-10-17","partner":"SARL Minalice","ht":1840.32,"tva":368.06,"ttc":2208.38,"residual":2208.38,"status":"not_paid"},{"id":2688,"date":"2025-10-15","due":"2025-10-15","partner":"Mr Guittenit","ht":136.37,"tva":13.63,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":2687,"date":"2025-10-15","due":"2025-10-15","partner":"Mme Nicollet","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2686,"date":"2025-10-14","due":"2025-10-14","partner":"Mr Fusch","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2684,"date":"2025-10-13","due":"2025-10-13","partner":"SMART-SERVICES","ht":720.0,"tva":144.0,"ttc":864.0,"residual":0,"status":"paid"},{"id":2683,"date":"2025-10-13","due":"2025-10-13","partner":"SMART-SERVICES","ht":732.0,"tva":146.4,"ttc":878.4,"residual":0,"status":"paid"},{"id":2682,"date":"2025-10-09","due":"2025-10-09","partner":"Mr Falanga","ht":693.7,"tva":69.37,"ttc":763.07,"residual":0,"status":"paid"},{"id":2681,"date":"2025-10-09","due":"2025-10-09","partner":"SCI la filature","ht":1014.14,"tva":101.41,"ttc":1115.55,"residual":0,"status":"paid"},{"id":2680,"date":"2025-10-09","due":"2025-10-09","partner":"Mr Bazarbachi Ahmad","ht":1215.4,"tva":121.54,"ttc":1336.94,"residual":0,"status":"paid"},{"id":2679,"date":"2025-10-06","due":"2025-10-06","partner":"SMART-SERVICES","ht":499.0,"tva":99.8,"ttc":598.8,"residual":0,"status":"paid"},{"id":2678,"date":"2025-10-03","due":"2025-10-03","partner":"Mr Lakbir Loïc","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":2677,"date":"2025-10-02","due":"2025-10-02","partner":"Face LR","ht":450.0,"tva":90.0,"ttc":540.0,"residual":0,"status":"paid"},{"id":2676,"date":"2025-10-02","due":"2025-10-02","partner":"Mr Bazarbachi Ahmad","ht":700.4,"tva":70.04,"ttc":770.44,"residual":0,"status":"paid"},{"id":2675,"date":"2025-10-01","due":"2025-10-01","partner":"Mr Chardiny","ht":227.27,"tva":22.73,"ttc":250.0,"residual":0,"status":"paid"},{"id":2674,"date":"2025-09-24","due":"2025-09-24","partner":"Mr et Mme Cade","ht":163.64,"tva":16.36,"ttc":180.0,"residual":0,"status":"paid"},{"id":2672,"date":"2025-09-23","due":"2025-09-23","partner":"SMART-SERVICES","ht":1095.72,"tva":219.14,"ttc":1314.86,"residual":0,"status":"paid"},{"id":2671,"date":"2025-09-22","due":"2025-09-22","partner":"SARL Minalice","ht":1840.32,"tva":368.06,"ttc":2208.38,"residual":2208.38,"status":"not_paid"},{"id":2670,"date":"2025-09-19","due":"2025-09-19","partner":"Mme et Mr Roucairol","ht":364.63,"tva":36.47,"ttc":401.1,"residual":0,"status":"paid"},{"id":2669,"date":"2025-09-16","due":"2025-09-16","partner":"SMART-SERVICES","ht":1358.0,"tva":271.6,"ttc":1629.6,"residual":0,"status":"paid"},{"id":2667,"date":"2025-09-12","due":"2025-09-12","partner":"Mme Odoir","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2665,"date":"2025-09-12","due":"2025-09-12","partner":"Mme Gaudu","ht":139.0,"tva":13.9,"ttc":152.9,"residual":0,"status":"paid"},{"id":2664,"date":"2025-09-12","due":"2025-09-12","partner":"Mr Roustant","ht":163.64,"tva":16.36,"ttc":180.0,"residual":0,"status":"paid"},{"id":2663,"date":"2025-09-12","due":"2025-09-12","partner":"Mr et Mme De la Paz","ht":782.0,"tva":78.2,"ttc":860.2,"residual":0.2,"status":"partial"},{"id":2633,"date":"2025-09-10","due":"2025-09-10","partner":"Domaine de Saint Pierre","ht":896.0,"tva":179.2,"ttc":1075.2,"residual":0,"status":"paid"},{"id":2632,"date":"2025-09-10","due":"2025-09-10","partner":"Association Gammes","ht":1318.0,"tva":131.8,"ttc":1449.8,"residual":0,"status":"paid"},{"id":2614,"date":"2025-09-04","due":"2025-09-04","partner":"Mme Parslow Madelaine","ht":81.82,"tva":8.18,"ttc":90.0,"residual":90.0,"status":"not_paid"},{"id":2612,"date":"2025-09-04","due":"2025-09-04","partner":"Mme Parslow Madelaine","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":2611,"date":"2025-09-04","due":"2025-09-04","partner":"Face LR","ht":763.6,"tva":152.72,"ttc":916.32,"residual":0,"status":"paid"},{"id":2579,"date":"2025-08-29","due":"2025-08-29","partner":"Mr Delord Jean Baptiste","ht":842.32,"tva":84.23,"ttc":926.55,"residual":0,"status":"paid"},{"id":2578,"date":"2025-08-29","due":"2025-08-29","partner":"Mme Beaussier","ht":842.15,"tva":84.22,"ttc":926.37,"residual":0,"status":"paid"},{"id":2568,"date":"2025-08-27","due":"2025-08-27","partner":"SCI MOMA","ht":1380.0,"tva":138.0,"ttc":1518.0,"residual":0,"status":"paid"},{"id":2540,"date":"2025-08-26","due":"2025-08-26","partner":"SMART-SERVICES","ht":746.0,"tva":149.2,"ttc":895.2,"residual":895.2,"status":"not_paid"},{"id":2539,"date":"2025-08-26","due":"2025-08-26","partner":"SMART-SERVICES","ht":1079.0,"tva":215.8,"ttc":1294.8,"residual":1294.8,"status":"not_paid"},{"id":2538,"date":"2025-08-26","due":"2025-08-26","partner":"SMART-SERVICES","ht":896.0,"tva":179.2,"ttc":1075.2,"residual":0,"status":"paid"},{"id":2537,"date":"2025-08-26","due":"2025-08-26","partner":"Face LR","ht":2240.4,"tva":448.08,"ttc":2688.48,"residual":0,"status":"paid"},{"id":2536,"date":"2025-08-25","due":"2025-08-25","partner":"SCI Faf auge","ht":160.0,"tva":32.0,"ttc":192.0,"residual":0,"status":"paid"},{"id":2511,"date":"2025-08-08","due":"2025-08-08","partner":"SMART-SERVICES","ht":670.0,"tva":134.0,"ttc":804.0,"residual":0,"status":"paid"},{"id":2507,"date":"2025-08-08","due":"2025-08-08","partner":"TLS RECYCLAGE","ht":850.2,"tva":170.04,"ttc":1020.24,"residual":0,"status":"paid"},{"id":2092,"date":"2025-08-05","due":"2025-05-05","partner":"SMART-SERVICES","ht":270.0,"tva":54.0,"ttc":324.0,"residual":0,"status":"paid"},{"id":2495,"date":"2025-08-05","due":"2025-08-05","partner":"SMART-SERVICES","ht":1046.0,"tva":209.2,"ttc":1255.2,"residual":1255.2,"status":"not_paid"},{"id":2496,"date":"2025-08-05","due":"2025-08-05","partner":"SMART-SERVICES","ht":1046.0,"tva":209.2,"ttc":1255.2,"residual":0,"status":"paid"},{"id":2494,"date":"2025-08-05","due":"2025-08-05","partner":"Mr Ayrault","ht":652.0,"tva":65.2,"ttc":717.2,"residual":0,"status":"paid"},{"id":2479,"date":"2025-08-01","due":"2025-08-01","partner":"Copropriété Le Babylone","ht":3536.8,"tva":353.68,"ttc":3890.48,"residual":0,"status":"paid"},{"id":2472,"date":"2025-07-31","due":"2025-07-31","partner":"Face LR","ht":932.0,"tva":186.4,"ttc":1118.4,"residual":1118.4,"status":"not_paid"},{"id":2464,"date":"2025-07-30","due":"2025-07-30","partner":"Mr Fons Francis","ht":136.37,"tva":13.63,"ttc":150.0,"residual":0,"status":"paid"},{"id":2462,"date":"2025-07-30","due":"2025-07-30","partner":"jacqueline Claude","ht":190.0,"tva":19.0,"ttc":209.0,"residual":0,"status":"paid"},{"id":2459,"date":"2025-07-30","due":"2025-07-30","partner":"Mr Barbot","ht":227.27,"tva":22.73,"ttc":250.0,"residual":0,"status":"paid"},{"id":2458,"date":"2025-07-30","due":"2025-07-30","partner":"Mr Ayrault","ht":136.5,"tva":13.65,"ttc":150.15,"residual":0,"status":"paid"},{"id":2457,"date":"2025-07-30","due":"2025-07-30","partner":"Me Derville","ht":770.0,"tva":77.0,"ttc":847.0,"residual":847.0,"status":"not_paid"},{"id":2456,"date":"2025-07-30","due":"2025-07-30","partner":"Mr Lejean","ht":272.73,"tva":27.27,"ttc":300.0,"residual":0,"status":"paid"},{"id":2455,"date":"2025-07-30","due":"2025-07-30","partner":"Mr Avena","ht":180.0,"tva":18.0,"ttc":198.0,"residual":0,"status":"paid"},{"id":2454,"date":"2025-07-30","due":"2025-07-30","partner":"Me Derville","ht":180.0,"tva":18.0,"ttc":198.0,"residual":198.0,"status":"not_paid"},{"id":2453,"date":"2025-07-30","due":"2025-07-30","partner":"Mr Jupin","ht":227.27,"tva":22.73,"ttc":250.0,"residual":0,"status":"paid"},{"id":2452,"date":"2025-07-30","due":"2025-07-30","partner":"Mme Seguin","ht":1215.5,"tva":121.55,"ttc":1337.05,"residual":445.0,"status":"partial"},{"id":2451,"date":"2025-07-30","due":"2025-07-30","partner":"Mme Seguin","ht":180.0,"tva":18.0,"ttc":198.0,"residual":198.0,"status":"not_paid"},{"id":2450,"date":"2025-07-30","due":"2025-07-30","partner":"TLS RECYCLAGE","ht":566.8,"tva":113.36,"ttc":680.16,"residual":0,"status":"paid"},{"id":2448,"date":"2025-07-29","due":"2025-07-29","partner":"Mr Foppolo","ht":1370.32,"tva":274.06,"ttc":1644.38,"residual":0,"status":"paid"},{"id":2443,"date":"2025-07-28","due":"2025-07-28","partner":"SCI MOMA","ht":940.0,"tva":94.0,"ttc":1034.0,"residual":0,"status":"paid"},{"id":2436,"date":"2025-07-28","due":"2025-07-28","partner":"SCI MOMA","ht":940.0,"tva":94.0,"ttc":1034.0,"residual":0,"status":"not_paid"},{"id":2432,"date":"2025-07-25","due":"2025-07-25","partner":"MR Alenda","ht":180.0,"tva":18.0,"ttc":198.0,"residual":0,"status":"paid"},{"id":2431,"date":"2025-07-25","due":"2025-07-25","partner":"Agence STI","ht":135.0,"tva":27.0,"ttc":162.0,"residual":162.0,"status":"not_paid"},{"id":2429,"date":"2025-07-25","due":"2025-07-25","partner":"Mr Fons Francis","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":2428,"date":"2025-07-25","due":"2025-07-25","partner":"SMART-SERVICES","ht":706.0,"tva":141.2,"ttc":847.2,"residual":0,"status":"paid"},{"id":2423,"date":"2025-07-23","due":"2025-07-23","partner":"Mr Buisine Charles","ht":230.0,"tva":23.0,"ttc":253.0,"residual":0,"status":"paid"},{"id":2413,"date":"2025-07-18","due":"2025-07-18","partner":"SMART-SERVICES","ht":825.0,"tva":165.0,"ttc":990.0,"residual":0,"status":"paid"},{"id":2412,"date":"2025-07-18","due":"2025-07-18","partner":"Mme Beaussier","ht":180.0,"tva":18.0,"ttc":198.0,"residual":0,"status":"paid"},{"id":2411,"date":"2025-07-18","due":"2025-07-18","partner":"Mr et Mme De la Paz","ht":180.0,"tva":18.0,"ttc":198.0,"residual":198.0,"status":"not_paid"},{"id":2410,"date":"2025-07-18","due":"2025-07-18","partner":"Mr Foppolo","ht":1572.76,"tva":314.55,"ttc":1887.31,"residual":1887.31,"status":"not_paid"},{"id":2401,"date":"2025-07-16","due":"2025-07-16","partner":"M Beaussier","ht":180.0,"tva":18.0,"ttc":198.0,"residual":0,"status":"not_paid"},{"id":2400,"date":"2025-07-16","due":"2025-07-16","partner":"Mme Jonary","ht":884.0,"tva":88.4,"ttc":972.4,"residual":0,"status":"paid"},{"id":2393,"date":"2025-07-15","due":"2025-07-15","partner":"Mme Chombeau","ht":180.0,"tva":18.0,"ttc":198.0,"residual":0,"status":"paid"},{"id":2392,"date":"2025-07-15","due":"2025-07-15","partner":"Jean Alexandre","ht":905.0,"tva":90.5,"ttc":995.5,"residual":0,"status":"paid"},{"id":2391,"date":"2025-07-15","due":"2025-07-15","partner":"Foncia Littoral","ht":766.0,"tva":76.6,"ttc":842.6,"residual":0,"status":"paid"},{"id":2390,"date":"2025-07-15","due":"2025-07-15","partner":"Foncia Littoral","ht":450.0,"tva":45.0,"ttc":495.0,"residual":0,"status":"paid"},{"id":2388,"date":"2025-07-15","due":"2025-07-15","partner":"Mme Queste","ht":139.09,"tva":13.91,"ttc":153.0,"residual":0,"status":"paid"},{"id":2387,"date":"2025-07-15","due":"2025-07-15","partner":"Mr Capdevila","ht":2073.0,"tva":207.3,"ttc":2280.3,"residual":0,"status":"paid"},{"id":2377,"date":"2025-07-09","due":"2025-07-09","partner":"Mme Queste","ht":139.09,"tva":13.91,"ttc":153.0,"residual":0,"status":"not_paid"},{"id":2364,"date":"2025-07-07","due":"2025-07-07","partner":"Mr Capdevila","ht":1382.0,"tva":138.2,"ttc":1520.2,"residual":0,"status":"paid"},{"id":2359,"date":"2025-07-04","due":"2025-07-04","partner":"Mr Galdeano","ht":409.1,"tva":40.9,"ttc":450.0,"residual":0,"status":"paid"},{"id":2358,"date":"2025-07-04","due":"2025-07-04","partner":"Mr Roustant","ht":409.09,"tva":40.91,"ttc":450.0,"residual":0,"status":"paid"},{"id":2357,"date":"2025-07-04","due":"2025-07-04","partner":"TRIACCA corinne","ht":163.64,"tva":16.36,"ttc":180.0,"residual":0,"status":"paid"},{"id":2338,"date":"2025-07-01","due":"2025-07-01","partner":"SCI CODEV IMMO","ht":1912.56,"tva":382.51,"ttc":2295.07,"residual":2295.07,"status":"not_paid"},{"id":2329,"date":"2025-06-30","due":"2025-06-30","partner":"Face LR","ht":2653.0,"tva":530.6,"ttc":3183.6,"residual":375.2,"status":"partial"},{"id":2323,"date":"2025-06-27","due":"2025-06-27","partner":"SMART-SERVICES","ht":726.0,"tva":145.2,"ttc":871.2,"residual":0,"status":"paid"},{"id":2322,"date":"2025-06-27","due":"2025-06-27","partner":"SMART-SERVICES","ht":674.8,"tva":134.96,"ttc":809.76,"residual":0,"status":"paid"},{"id":2311,"date":"2025-06-25","due":"2025-06-25","partner":"Sdc Le Cottage Domis Montpellier","ht":180.0,"tva":18.0,"ttc":198.0,"residual":0,"status":"paid"},{"id":2310,"date":"2025-06-25","due":"2025-06-25","partner":"Mme Pastre","ht":139.09,"tva":13.91,"ttc":153.0,"residual":0,"status":"paid"},{"id":2309,"date":"2025-06-25","due":"2025-06-25","partner":"Mr et Mme Fritsch","ht":229.72,"tva":22.97,"ttc":252.69,"residual":0,"status":"paid"},{"id":2307,"date":"2025-06-24","due":"2025-06-24","partner":"Mme Odoir","ht":2401.0,"tva":240.1,"ttc":2641.1,"residual":0,"status":"paid"},{"id":2302,"date":"2025-06-23","due":"2025-06-23","partner":"Mr Clément","ht":180.0,"tva":18.0,"ttc":198.0,"residual":0,"status":"paid"},{"id":2301,"date":"2025-06-23","due":"2025-06-23","partner":"Mr Carpentier","ht":163.64,"tva":16.36,"ttc":180.0,"residual":0,"status":"paid"},{"id":2300,"date":"2025-06-23","due":"2025-06-23","partner":"Mr Carpentier","ht":724.0,"tva":72.4,"ttc":796.4,"residual":796.4,"status":"not_paid"},{"id":2298,"date":"2025-06-23","due":"2025-06-23","partner":"MOSCARDO Estelle","ht":227.27,"tva":22.73,"ttc":250.0,"residual":250.0,"status":"not_paid"},{"id":2297,"date":"2025-06-23","due":"2025-06-23","partner":"Mr Arnaud","ht":704.96,"tva":70.5,"ttc":775.46,"residual":0,"status":"paid"},{"id":2296,"date":"2025-06-23","due":"2025-06-23","partner":"Me Graell","ht":163.64,"tva":16.36,"ttc":180.0,"residual":0,"status":"paid"},{"id":2293,"date":"2025-06-20","due":"2025-06-20","partner":"Mr et Mme Fritsch","ht":238.72,"tva":23.87,"ttc":262.59,"residual":262.59,"status":"not_paid"},{"id":2292,"date":"2025-06-20","due":"2025-06-20","partner":"PAYSANS DU COIN","ht":175.0,"tva":35.0,"ttc":210.0,"residual":0,"status":"paid"},{"id":2290,"date":"2025-06-20","due":"2025-06-20","partner":"Mr Capdevila","ht":163.64,"tva":16.36,"ttc":180.0,"residual":180.0,"status":"not_paid"},{"id":2289,"date":"2025-06-20","due":"2025-06-20","partner":"Face LR","ht":612.4,"tva":122.48,"ttc":734.88,"residual":0,"status":"paid"},{"id":2288,"date":"2025-06-20","due":"2025-06-20","partner":"Face LR","ht":1493.6,"tva":298.72,"ttc":1792.32,"residual":0,"status":"paid"},{"id":2269,"date":"2025-06-18","due":"2025-06-18","partner":"Mr Elfilali","ht":419.14,"tva":41.91,"ttc":461.05,"residual":461.05,"status":"not_paid"},{"id":2268,"date":"2025-06-18","due":"2025-06-18","partner":"SCI le Clos des Murgues","ht":1617.8,"tva":323.56,"ttc":1941.36,"residual":1000.0,"status":"partial"},{"id":2260,"date":"2025-06-17","due":"2025-06-17","partner":"Agence STI","ht":635.0,"tva":127.0,"ttc":762.0,"residual":0,"status":"paid"},{"id":2259,"date":"2025-06-17","due":"2025-06-17","partner":"SARL STAG","ht":826.81,"tva":165.36,"ttc":992.17,"residual":992.17,"status":"not_paid"},{"id":2258,"date":"2025-06-17","due":"2025-06-17","partner":"Domaine de Saint Pierre","ht":885.6,"tva":177.12,"ttc":1062.72,"residual":0,"status":"paid"},{"id":2235,"date":"2025-06-11","due":"2025-06-11","partner":"SCI CODEV IMMO","ht":1612.57,"tva":322.51,"ttc":1935.08,"residual":0,"status":"paid"},{"id":2226,"date":"2025-06-06","due":"2025-06-06","partner":"Christine Marcellin","ht":500.0,"tva":50.0,"ttc":550.0,"residual":550.0,"status":"not_paid"},{"id":2225,"date":"2025-06-06","due":"2025-06-06","partner":"Christine Marcellin","ht":708.0,"tva":70.8,"ttc":778.8,"residual":778.8,"status":"not_paid"},{"id":2219,"date":"2025-06-05","due":"2025-06-05","partner":"Docteur Randrianjanaka","ht":782.0,"tva":78.2,"ttc":860.2,"residual":0,"status":"paid"},{"id":2218,"date":"2025-06-05","due":"2025-06-05","partner":"SARL STAG","ht":128.33,"tva":25.67,"ttc":154.0,"residual":154.0,"status":"not_paid"},{"id":2195,"date":"2025-06-03","due":"2025-06-03","partner":"Domaine de Saint Pierre","ht":590.4,"tva":118.08,"ttc":708.48,"residual":0.08,"status":"partial"},{"id":2194,"date":"2025-06-03","due":"2025-06-03","partner":"SCI Perpignan immo","ht":350.0,"tva":70.0,"ttc":420.0,"residual":0,"status":"paid"},{"id":2175,"date":"2025-05-28","due":"2025-05-28","partner":"Mme Mesplé","ht":272.73,"tva":27.27,"ttc":300.0,"residual":0,"status":"paid"},{"id":2155,"date":"2025-05-23","due":"2025-05-23","partner":"SCI du 29 Rue Cambon II","ht":956.0,"tva":191.2,"ttc":1147.2,"residual":0,"status":"paid"},{"id":2154,"date":"2025-05-23","due":"2025-05-23","partner":"Mr Souchon","ht":684.15,"tva":68.42,"ttc":752.57,"residual":0,"status":"paid"},{"id":2153,"date":"2025-05-23","due":"2025-05-23","partner":"SCI Faf auge","ht":454.16,"tva":90.84,"ttc":545.0,"residual":0,"status":"paid"},{"id":2152,"date":"2025-05-23","due":"2025-05-23","partner":"Mr Choquenet","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2151,"date":"2025-05-23","due":"2025-05-23","partner":"Mr Choquenet","ht":450.0,"tva":45.0,"ttc":495.0,"residual":0,"status":"paid"},{"id":2150,"date":"2025-05-23","due":"2025-05-23","partner":"Mr Cambronne Nicolas","ht":658.8,"tva":65.88,"ttc":724.68,"residual":0,"status":"paid"},{"id":2097,"date":"2025-05-06","due":"2025-05-06","partner":"Mr et Mme Fritsch","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2091,"date":"2025-05-05","due":"2025-05-05","partner":"Mme Mesplé","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":2079,"date":"2025-05-02","due":"2025-05-02","partner":"Mme Lembert","ht":481.5,"tva":48.15,"ttc":529.65,"residual":0,"status":"paid"},{"id":2077,"date":"2025-05-02","due":"2025-05-02","partner":"Barcelo Alexandra","ht":447.88,"tva":89.57,"ttc":537.45,"residual":0,"status":"paid"},{"id":2061,"date":"2025-04-29","due":"2025-04-29","partner":"Agence STI","ht":125.0,"tva":25.0,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":2059,"date":"2025-04-28","due":"2025-04-28","partner":"Mr Borreda Alain","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":2058,"date":"2025-04-28","due":"2025-04-28","partner":"Mr Rakotomalala","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2057,"date":"2025-04-28","due":"2025-04-28","partner":"Sogetrel","ht":1380.0,"tva":0,"ttc":1380.0,"residual":0,"status":"paid"},{"id":2023,"date":"2025-04-23","due":"2025-04-23","partner":"IRD Montpellier","ht":1570.0,"tva":314.0,"ttc":1884.0,"residual":0,"status":"paid"},{"id":2017,"date":"2025-04-22","due":"2025-04-22","partner":"Mr Cholley","ht":450.0,"tva":45.0,"ttc":495.0,"residual":0,"status":"paid"},{"id":2013,"date":"2025-04-18","due":"2025-04-18","partner":"Mr Pezon","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":2012,"date":"2025-04-18","due":"2025-04-18","partner":"Mr Souchon","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2011,"date":"2025-04-18","due":"2025-04-18","partner":"Mr Arnaud","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":2010,"date":"2025-04-18","due":"2025-04-18","partner":"SCI Faf auge","ht":195.84,"tva":39.16,"ttc":235.0,"residual":0,"status":"paid"},{"id":1997,"date":"2025-04-16","due":"2025-04-16","partner":"Mr Dubus","ht":2218.0,"tva":221.8,"ttc":2439.8,"residual":0,"status":"paid"},{"id":1996,"date":"2025-04-15","due":"2025-04-15","partner":"Mme Picard","ht":519.18,"tva":51.92,"ttc":571.1,"residual":571.1,"status":"not_paid"},{"id":1995,"date":"2025-04-15","due":"2025-04-15","partner":"Mme Frechet","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":1988,"date":"2025-04-14","due":"2025-04-14","partner":"Mr Cambronne Nicolas","ht":439.2,"tva":43.92,"ttc":483.12,"residual":0,"status":"paid"},{"id":1972,"date":"2025-04-09","due":"2025-04-09","partner":"SMART-SERVICES","ht":694.0,"tva":138.8,"ttc":832.8,"residual":0,"status":"paid"},{"id":1951,"date":"2025-04-04","due":"2025-04-04","partner":"Mr Cambronne Nicolas","ht":775.5,"tva":77.55,"ttc":853.05,"residual":0,"status":"paid"},{"id":1950,"date":"2025-04-04","due":"2025-04-04","partner":"Mr Landragin","ht":1043.0,"tva":104.3,"ttc":1147.3,"residual":0,"status":"paid"},{"id":1949,"date":"2025-04-04","due":"2025-04-04","partner":"Communauté d'agglomération Lunel Agglo","ht":2805.36,"tva":561.07,"ttc":3366.43,"residual":0,"status":"paid"},{"id":1945,"date":"2025-04-03","due":"2025-04-03","partner":"SCI CODEV IMMO","ht":2150.09,"tva":430.02,"ttc":2580.11,"residual":0,"status":"paid"},{"id":1935,"date":"2025-04-01","due":"2025-04-01","partner":"Mr Moreau Rémi","ht":1092.46,"tva":218.49,"ttc":1310.95,"residual":0,"status":"paid"},{"id":1934,"date":"2025-03-29","due":"2025-03-29","partner":"APF BYMYCAR LEMAN","ht":2178.93,"tva":435.79,"ttc":2614.72,"residual":2614.72,"status":"not_paid"},{"id":1932,"date":"2025-03-28","due":"2025-03-28","partner":"Mr Vera","ht":181.82,"tva":18.18,"ttc":200.0,"residual":0,"status":"paid"},{"id":1927,"date":"2025-03-27","due":"2025-03-27","partner":"Mr Cremieux","ht":718.2,"tva":71.82,"ttc":790.02,"residual":0,"status":"paid"},{"id":1925,"date":"2025-03-26","due":"2025-03-26","partner":"Agence STI","ht":125.0,"tva":25.0,"ttc":150.0,"residual":0,"status":"paid"},{"id":1924,"date":"2025-03-26","due":"2025-03-26","partner":"Agence STI","ht":125.0,"tva":25.0,"ttc":150.0,"residual":0,"status":"paid"},{"id":1923,"date":"2025-03-26","due":"2025-03-26","partner":"Agence STI","ht":125.0,"tva":25.0,"ttc":150.0,"residual":0,"status":"paid"},{"id":1922,"date":"2025-03-26","due":"2025-03-26","partner":"Agence STI","ht":125.0,"tva":25.0,"ttc":150.0,"residual":0,"status":"paid"},{"id":1916,"date":"2025-03-22","due":"2025-03-22","partner":"SMART-SERVICES","ht":583.0,"tva":116.6,"ttc":699.6,"residual":0,"status":"paid"},{"id":1915,"date":"2025-03-21","due":"2025-03-21","partner":"Mr Jean","ht":163.64,"tva":16.36,"ttc":180.0,"residual":180.0,"status":"not_paid"},{"id":1914,"date":"2025-03-21","due":"2025-03-21","partner":"Karuna Starlight","ht":340.0,"tva":68.0,"ttc":408.0,"residual":0,"status":"paid"},{"id":1913,"date":"2025-03-21","due":"2025-03-21","partner":"Mme Vigues","ht":816.0,"tva":81.6,"ttc":897.6,"residual":0.1,"status":"partial"},{"id":1902,"date":"2025-03-19","due":"2025-03-19","partner":"Mme Maury","ht":757.15,"tva":75.72,"ttc":832.87,"residual":0,"status":"paid"},{"id":1900,"date":"2025-03-19","due":"2025-03-19","partner":"Mr Landragin","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":1899,"date":"2025-03-19","due":"2025-03-19","partner":"Miquel bernard","ht":851.8,"tva":85.18,"ttc":936.98,"residual":0,"status":"paid"},{"id":1898,"date":"2025-03-19","due":"2025-03-19","partner":"Mr Aragon","ht":150.0,"tva":30.0,"ttc":180.0,"residual":0,"status":"paid"},{"id":1876,"date":"2025-03-12","due":"2025-03-12","partner":"Mr jean","ht":286.36,"tva":28.64,"ttc":315.0,"residual":0,"status":"paid"},{"id":1869,"date":"2025-03-12","due":"2025-03-12","partner":"Mme Barrier","ht":500.0,"tva":70.0,"ttc":570.0,"residual":150.0,"status":"partial"},{"id":1868,"date":"2025-03-12","due":"2025-03-12","partner":"Mme Barrier","ht":700.0,"tva":70.0,"ttc":770.0,"residual":0,"status":"not_paid"},{"id":1863,"date":"2025-03-11","due":"2025-03-11","partner":"Mr Silvestre","ht":640.0,"tva":64.0,"ttc":704.0,"residual":0,"status":"paid"},{"id":1856,"date":"2025-03-07","due":"2025-03-07","partner":"Mme Barrier","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1855,"date":"2025-03-07","due":"2025-03-07","partner":"Gonzalez Eulalia","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":1854,"date":"2025-03-07","due":"2025-03-07","partner":"Mr Jean","ht":313.64,"tva":31.36,"ttc":345.0,"residual":0,"status":"not_paid"},{"id":1853,"date":"2025-03-07","due":"2025-03-07","partner":"SCI Faf auge","ht":936.67,"tva":187.33,"ttc":1124.0,"residual":0,"status":"paid"},{"id":1852,"date":"2025-03-07","due":"2025-03-07","partner":"SCI Faf auge","ht":333.33,"tva":66.67,"ttc":400.0,"residual":0,"status":"paid"},{"id":1840,"date":"2025-03-06","due":"2025-03-06","partner":"Sci ecusson ZN","ht":286.7,"tva":57.34,"ttc":344.04,"residual":344.04,"status":"not_paid"},{"id":1828,"date":"2025-03-04","due":"2025-03-04","partner":"Mme Barrier","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1826,"date":"2025-03-04","due":"2025-03-04","partner":"Mr Jean","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"not_paid"},{"id":1825,"date":"2025-03-04","due":"2025-03-04","partner":"Laurent Fouquet","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1823,"date":"2025-03-04","due":"2025-03-04","partner":"Mr Vuille Gérard","ht":166.67,"tva":33.33,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":1822,"date":"2025-03-04","due":"2025-03-04","partner":"EURL Immobat","ht":200.0,"tva":40.0,"ttc":240.0,"residual":240.0,"status":"not_paid"},{"id":1821,"date":"2025-03-04","due":"2025-03-04","partner":"Mr Rouvière","ht":1471.11,"tva":294.23,"ttc":1765.34,"residual":0,"status":"paid"},{"id":1819,"date":"2025-03-04","due":"2025-03-04","partner":"Christine Marcellin","ht":1028.16,"tva":102.82,"ttc":1130.98,"residual":1130.98,"status":"not_paid"},{"id":1815,"date":"2025-03-04","due":"2025-03-04","partner":"Christine Marcellin","ht":1211.84,"tva":121.18,"ttc":1333.02,"residual":1333.02,"status":"not_paid"},{"id":1814,"date":"2025-03-04","due":"2025-03-04","partner":"Karuna Starlight","ht":460.0,"tva":92.0,"ttc":552.0,"residual":0,"status":"paid"},{"id":1810,"date":"2025-03-03","due":"2025-03-03","partner":"Christine Marcellin","ht":1052.0,"tva":105.2,"ttc":1157.2,"residual":0,"status":"not_paid"},{"id":1808,"date":"2025-03-03","due":"2025-03-03","partner":"Mr Lubin","ht":467.0,"tva":46.7,"ttc":513.7,"residual":513.7,"status":"not_paid"},{"id":1792,"date":"2025-02-26","due":"2025-02-26","partner":"Mr Cambronne Nicolas","ht":517.0,"tva":51.7,"ttc":568.7,"residual":0,"status":"paid"},{"id":1791,"date":"2025-02-26","due":"2025-02-26","partner":"Mme Boyance","ht":650.0,"tva":65.0,"ttc":715.0,"residual":0,"status":"paid"},{"id":1785,"date":"2025-02-25","due":"2025-02-25","partner":"Mr Hab Mohamed","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1778,"date":"2025-02-21","due":"2025-02-21","partner":"Sogetrel","ht":2770.0,"tva":0,"ttc":2770.0,"residual":0,"status":"paid"},{"id":1727,"date":"2025-02-19","due":"2025-02-19","partner":"Mr et Mme. Penhard","ht":550.0,"tva":55.0,"ttc":605.0,"residual":605.0,"status":"not_paid"},{"id":1726,"date":"2025-02-19","due":"2025-02-19","partner":"Sogetrel","ht":1220.0,"tva":0,"ttc":1220.0,"residual":0,"status":"paid"},{"id":1725,"date":"2025-02-14","due":"2025-02-14","partner":"Mr Soula","ht":804.0,"tva":80.4,"ttc":884.4,"residual":0,"status":"paid"},{"id":1724,"date":"2025-02-14","due":"2025-02-14","partner":"M. Basilio","ht":733.5,"tva":73.35,"ttc":806.85,"residual":0,"status":"paid"},{"id":1723,"date":"2025-02-12","due":"2025-02-12","partner":"SMART-SERVICES","ht":499.0,"tva":99.8,"ttc":598.8,"residual":0,"status":"paid"},{"id":1722,"date":"2025-02-12","due":"2025-02-12","partner":"SMART-SERVICES","ht":470.0,"tva":94.0,"ttc":564.0,"residual":0,"status":"paid"},{"id":1721,"date":"2025-02-07","due":"2025-02-07","partner":"Karuna Starlight","ht":537.84,"tva":107.57,"ttc":645.41,"residual":0,"status":"paid"},{"id":1720,"date":"2025-02-07","due":"2025-02-07","partner":"SMART-SERVICES","ht":550.0,"tva":110.0,"ttc":660.0,"residual":0,"status":"paid"},{"id":1719,"date":"2025-02-05","due":"2025-02-05","partner":"Mr Rouvière","ht":630.47,"tva":126.09,"ttc":756.56,"residual":0,"status":"paid"},{"id":1706,"date":"2025-01-31","due":"2025-01-31","partner":"Cadiere Celine","ht":1694.0,"tva":169.4,"ttc":1863.4,"residual":0,"status":"paid"},{"id":1705,"date":"2025-01-31","due":"2025-01-31","partner":"Christine Marcellin","ht":1212.0,"tva":121.2,"ttc":1333.2,"residual":0,"status":"paid"},{"id":1702,"date":"2025-01-30","due":"2025-01-30","partner":"Mr Dousset","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":1701,"date":"2025-01-30","due":"2025-01-30","partner":"Lycée Masséna","ht":805.0,"tva":161.0,"ttc":966.0,"residual":0,"status":"paid"},{"id":1699,"date":"2025-01-30","due":"2025-01-30","partner":"M. Chapperon","ht":905.88,"tva":90.59,"ttc":996.47,"residual":0,"status":"paid"},{"id":1690,"date":"2025-01-27","due":"2025-01-27","partner":"Mr brun","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":1689,"date":"2025-01-27","due":"2025-01-27","partner":"Agence STI","ht":450.0,"tva":90.0,"ttc":540.0,"residual":540.0,"status":"not_paid"},{"id":1675,"date":"2025-01-21","due":"2025-01-21","partner":"Face LR","ht":1476.0,"tva":295.2,"ttc":1771.2,"residual":0,"status":"paid"},{"id":1673,"date":"2025-01-20","due":"2025-01-20","partner":"Mme Fievee","ht":620.0,"tva":62.0,"ttc":682.0,"residual":682.0,"status":"not_paid"},{"id":1672,"date":"2025-01-20","due":"2025-01-20","partner":"Mr Senellier","ht":534.08,"tva":53.41,"ttc":587.49,"residual":0,"status":"paid"},{"id":1657,"date":"2025-01-14","due":"2025-01-14","partner":"M. Chapperon","ht":603.92,"tva":60.39,"ttc":664.31,"residual":0,"status":"paid"},{"id":1646,"date":"2025-01-13","due":"2025-01-13","partner":"TORRECILLA","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":1637,"date":"2025-01-10","due":"2025-01-10","partner":"Isabelle Barra","ht":200.0,"tva":20.0,"ttc":220.0,"residual":220.0,"status":"not_paid"},{"id":1636,"date":"2025-01-10","due":"2025-01-10","partner":"Karuna Starlight","ht":358.56,"tva":71.71,"ttc":430.27,"residual":0,"status":"paid"},{"id":1616,"date":"2025-01-08","due":"2025-01-08","partner":"Sci le must","ht":816.0,"tva":81.6,"ttc":897.6,"residual":0,"status":"paid"},{"id":1597,"date":"2025-01-06","due":"2025-01-06","partner":"Isabelle Barra","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":1596,"date":"2025-01-06","due":"2025-01-06","partner":"Mme Fayard","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":1595,"date":"2025-01-06","due":"2025-01-06","partner":"Mr Paquet","ht":63.64,"tva":6.36,"ttc":70.0,"residual":0,"status":"paid"},{"id":1593,"date":"2025-01-06","due":"2025-01-06","partner":"Mme Fievee","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1592,"date":"2025-01-06","due":"2025-01-06","partner":"Mr Saettel","ht":3429.2,"tva":342.92,"ttc":3772.12,"residual":1000.0,"status":"partial"},{"id":1591,"date":"2025-01-06","due":"2025-01-06","partner":"Alain Daunis","ht":318.18,"tva":31.82,"ttc":350.0,"residual":350.0,"status":"not_paid"},{"id":1587,"date":"2025-01-06","due":"2025-01-06","partner":"Mr et Mme Mathonnet","ht":210.91,"tva":39.09,"ttc":250.0,"residual":250.0,"status":"not_paid"},{"id":1583,"date":"2025-01-06","due":"2025-01-06","partner":"Christian Bidault","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1589,"date":"2025-01-06","due":"2025-01-06","partner":"Ambrosino","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1588,"date":"2025-01-06","due":"2025-01-06","partner":"Ambrosino","ht":757.0,"tva":75.7,"ttc":832.7,"residual":832.7,"status":"not_paid"},{"id":1578,"date":"2025-01-02","due":"2025-01-02","partner":"Sci Maison Verte","ht":855.0,"tva":171.0,"ttc":1026.0,"residual":1026.0,"status":"partial"},{"id":1477,"date":"2024-12-13","due":"2024-12-03","partner":"Alain Poidevin","ht":481.82,"tva":48.18,"ttc":530.0,"residual":0,"status":"paid"},{"id":1538,"date":"2024-12-13","due":"2024-12-13","partner":"Sci Les mas du midi","ht":226.36,"tva":22.64,"ttc":249.0,"residual":249.0,"status":"not_paid"},{"id":1537,"date":"2024-12-13","due":"2024-12-13","partner":"SMART-SERVICES","ht":383.1,"tva":76.62,"ttc":459.72,"residual":0,"status":"paid"},{"id":1535,"date":"2024-12-13","due":"2024-12-13","partner":"M. Ilhe","ht":486.36,"tva":48.64,"ttc":535.0,"residual":0,"status":"paid"},{"id":1534,"date":"2024-12-13","due":"2024-12-13","partner":"SMART-SERVICES","ht":389.1,"tva":77.82,"ttc":466.92,"residual":0,"status":"paid"},{"id":1533,"date":"2024-12-13","due":"2024-12-13","partner":"Mr et Mme Mathonnet","ht":231.82,"tva":23.18,"ttc":255.0,"residual":0,"status":"not_paid"},{"id":1532,"date":"2024-12-13","due":"2024-12-13","partner":"Cadiere Celine","ht":181.82,"tva":18.18,"ttc":200.0,"residual":200.0,"status":"not_paid"},{"id":1531,"date":"2024-12-13","due":"2024-12-13","partner":"M. Cernoneschi Bis","ht":700.0,"tva":70.0,"ttc":770.0,"residual":0,"status":"paid"},{"id":1530,"date":"2024-12-13","due":"2024-12-13","partner":"M. Cernoneschi","ht":756.36,"tva":75.64,"ttc":832.0,"residual":332.0,"status":"partial"},{"id":1524,"date":"2024-12-12","due":"2024-12-12","partner":"SCI clemm","ht":720.0,"tva":72.0,"ttc":792.0,"residual":792.0,"status":"not_paid"},{"id":1480,"date":"2024-12-03","due":"2024-12-03","partner":"Mr et Mme Gutierrez","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1479,"date":"2024-12-03","due":"2024-12-03","partner":"Mr Cordier","ht":136.36,"tva":13.64,"ttc":150.0,"residual":150.0,"status":"not_paid"},{"id":1478,"date":"2024-12-03","due":"2024-12-03","partner":"Alain Poidevin","ht":318.17,"tva":31.82,"ttc":349.99,"residual":349.99,"status":"not_paid"},{"id":1476,"date":"2024-12-03","due":"2024-12-03","partner":"Mr Brochier","ht":380.0,"tva":38.0,"ttc":418.0,"residual":0,"status":"paid"},{"id":1475,"date":"2024-12-03","due":"2025-02-01","partner":"SCI Lauranto","ht":4791.36,"tva":958.27,"ttc":5749.63,"residual":5749.63,"status":"not_paid"},{"id":1472,"date":"2024-12-03","due":"2025-02-01","partner":"SCI Lauranto","ht":2053.44,"tva":410.69,"ttc":2464.13,"residual":2464.13,"status":"not_paid"},{"id":1455,"date":"2024-11-29","due":"2024-11-28","partner":"Mr et Mme Orrit","ht":136.36,"tva":13.64,"ttc":150.0,"residual":0,"status":"paid"},{"id":1415,"date":"2024-11-22","due":"2024-11-22","partner":"Sci Maison Verte","ht":363.9,"tva":72.78,"ttc":436.68,"residual":436.68,"status":"not_paid"},{"id":1414,"date":"2024-11-22","due":"2024-12-25","partner":"Sci Maison Verte","ht":363.9,"tva":72.78,"ttc":436.68,"residual":436.68,"status":"not_paid"},{"id":1377,"date":"2024-11-15","due":"2024-12-15","partner":"Mr Setiée","ht":150.0,"tva":30.0,"ttc":180.0,"residual":180.0,"status":"not_paid"}];
+const RAW_REFUNDS = [{"id":3458,"date":"2026-04-27","partner":"SMART-SERVICES","ht":666.0,"ttc":799.2},{"id":3449,"date":"2026-04-21","partner":"Agence STI","ht":166.67,"ttc":200.0},{"id":3434,"date":"2026-04-13","partner":"Surho Architecture","ht":559.0,"ttc":670.8},{"id":3423,"date":"2026-04-08","partner":"Agence STI","ht":136.36,"ttc":163.63},{"id":3421,"date":"2026-04-08","partner":"Boukaker Lathuile","ht":300.0,"ttc":360.0},{"id":3407,"date":"2026-03-30","partner":"Mr Pellequer","ht":796.56,"ttc":876.22},{"id":3382,"date":"2026-03-12","partner":"M Beaussier","ht":180.0,"ttc":198.0},{"id":3248,"date":"2026-02-05","partner":"Mr Vialatte","ht":450.0,"ttc":495.0},{"id":3240,"date":"2026-02-04","partner":"Mme Gonzalez","ht":653.0,"ttc":718.3},{"id":2926,"date":"2025-11-05","partner":"SMART-SERVICES","ht":489.4,"ttc":587.28},{"id":2901,"date":"2025-10-31","partner":"SMART-SERVICES","ht":489.4,"ttc":587.28},{"id":2895,"date":"2025-10-31","partner":"SMART-SERVICES","ht":479.0,"ttc":574.8},{"id":2441,"date":"2025-07-28","partner":"SCI MOMA","ht":940.0,"ttc":1034.0},{"id":2389,"date":"2025-07-15","partner":"Mme Queste","ht":139.09,"ttc":153.0},{"id":1874,"date":"2025-03-12","partner":"Mr Jean","ht":313.64,"ttc":345.0},{"id":1873,"date":"2025-03-12","partner":"Mr Jean","ht":136.36,"ttc":150.0},{"id":1872,"date":"2025-03-12","partner":"Mr Jean","ht":163.64,"ttc":180.0},{"id":1870,"date":"2025-03-12","partner":"Mme Barrier","ht":700.0,"ttc":770.0},{"id":1817,"date":"2025-03-04","partner":"Christine Marcellin","ht":1052.0,"ttc":1157.2},{"id":1586,"date":"2025-01-06","partner":"Mr et Mme Mathonnet","ht":231.82,"ttc":255.0}];
+const BANK_DATA   = {"total":-3659.75,"accounts":[{"id":13,"name":"Bank","balance":360.72,"last_date":"2026-03-04"},{"id":15,"name":"FR7613506100008519319775871","balance":0.0,"last_date":"2024-12-13"},{"id":17,"name":"FR7613506100008516202844316","balance":-4020.47,"last_date":"2026-05-21"}],"error":null};
+const APPELS_KPIS = {"portails":{"count_today":0,"count_7d":2,"hours_since_last":36.4,"last_date":"2026-05-20T00:00:00","color":"orange","total":30},"fibre":{"count_today":1,"count_7d":3,"hours_since_last":12.4,"last_date":"2026-05-21T00:00:00","color":"green","total":164}};
+const IMPAYES_CLIENTS = [{"partner":"SCI Lauranto","total_du":8213.76,"nb_factures":2,"factures":[{"id":1475,"date":"2024-12-03","due":"2025-02-01","residual":5749.63,"days_overdue":474,"status":"not_paid"},{"id":1472,"date":"2024-12-03","due":"2025-02-01","residual":2464.13,"days_overdue":474,"status":"not_paid"}],"oldest_days":474,"priority":29980.0,"severity":"critical"},{"partner":"Copropriété Isis Europa","total_du":14675.1,"nb_factures":8,"factures":[{"id":3475,"date":"2026-05-18","due":"2026-05-18","residual":1978.35,"days_overdue":3,"status":"not_paid"},{"id":3453,"date":"2026-04-23","due":"2026-04-23","residual":1004.3,"days_overdue":28,"status":"not_paid"},{"id":3452,"date":"2026-04-23","due":"2026-04-23","residual":3614.27,"days_overdue":28,"status":"not_paid"},{"id":3416,"date":"2026-04-07","due":"2026-04-07","residual":1474.38,"days_overdue":44,"status":"not_paid"},{"id":3138,"date":"2026-01-07","due":"2026-01-07","residual":1618.65,"days_overdue":134,"status":"not_paid"},{"id":3137,"date":"2026-01-07","due":"2026-01-07","residual":2957.13,"days_overdue":134,"status":"not_paid"},{"id":3136,"date":"2026-01-07","due":"2026-01-07","residual":821.7,"days_overdue":134,"status":"not_paid"},{"id":3135,"date":"2026-01-07","due":"2026-01-07","residual":1206.32,"days_overdue":134,"status":"not_paid"}],"oldest_days":134,"priority":19665.0,"severity":"critical"},{"partner":"SMART-SERVICES","total_du":6143.59,"nb_factures":7,"factures":[{"id":3387,"date":"2026-03-16","due":"2026-03-16","residual":833.11,"days_overdue":66,"status":"not_paid"},{"id":3373,"date":"2026-03-10","due":"2026-03-10","residual":886.8,"days_overdue":72,"status":"not_paid"},{"id":3372,"date":"2026-03-10","due":"2026-03-10","residual":391.2,"days_overdue":72,"status":"not_paid"},{"id":2927,"date":"2025-11-05","due":"2025-11-05","residual":587.28,"days_overdue":197,"status":"not_paid"},{"id":2540,"date":"2025-08-26","due":"2025-08-26","residual":895.2,"days_overdue":268,"status":"not_paid"},{"id":2539,"date":"2025-08-26","due":"2025-08-26","residual":1294.8,"days_overdue":268,"status":"not_paid"},{"id":2495,"date":"2025-08-05","due":"2025-08-05","residual":1255.2,"days_overdue":289,"status":"not_paid"}],"oldest_days":289,"priority":17755.0,"severity":"critical"},{"partner":"Christine Marcellin","total_du":3792.8,"nb_factures":4,"factures":[{"id":2226,"date":"2025-06-06","due":"2025-06-06","residual":550.0,"days_overdue":349,"status":"not_paid"},{"id":2225,"date":"2025-06-06","due":"2025-06-06","residual":778.8,"days_overdue":349,"status":"not_paid"},{"id":1819,"date":"2025-03-04","due":"2025-03-04","residual":1130.98,"days_overdue":443,"status":"not_paid"},{"id":1815,"date":"2025-03-04","due":"2025-03-04","residual":1333.02,"days_overdue":443,"status":"not_paid"}],"oldest_days":443,"priority":13844.0,"severity":"critical"},{"partner":"Face LR","total_du":3437.72,"nb_factures":5,"factures":[{"id":3362,"date":"2026-03-03","due":"2026-03-03","residual":168.0,"days_overdue":79,"status":"not_paid"},{"id":3361,"date":"2026-03-03","due":"2026-03-03","residual":338.4,"days_overdue":79,"status":"not_paid"},{"id":3203,"date":"2026-01-23","due":"2026-01-23","residual":1437.72,"days_overdue":118,"status":"not_paid"},{"id":2472,"date":"2025-07-31","due":"2025-07-31","residual":1118.4,"days_overdue":294,"status":"not_paid"},{"id":2329,"date":"2025-06-30","due":"2025-06-30","residual":375.2,"days_overdue":325,"status":"partial"}],"oldest_days":325,"priority":11173.0,"severity":"critical"},{"partner":"SARL Minalice","total_du":4420.0,"nb_factures":3,"factures":[{"id":2691,"date":"2025-10-21","due":"2025-10-21","residual":3.24,"days_overdue":212,"status":"partial"},{"id":2690,"date":"2025-10-17","due":"2025-10-17","residual":2208.38,"days_overdue":216,"status":"not_paid"},{"id":2671,"date":"2025-09-22","due":"2025-09-22","residual":2208.38,"days_overdue":241,"status":"not_paid"}],"oldest_days":241,"priority":10652.0,"severity":"critical"},{"partner":"APF BYMYCAR LEMAN","total_du":2614.72,"nb_factures":1,"factures":[{"id":1934,"date":"2025-03-29","due":"2025-03-29","residual":2614.72,"days_overdue":418,"status":"not_paid"}],"oldest_days":418,"priority":9544.0,"severity":"critical"},{"partner":"Les Jardins de Beaumont","total_du":9236.26,"nb_factures":2,"factures":[{"id":3379,"date":"2026-03-10","due":"2026-03-10","residual":2622.33,"days_overdue":72,"status":"not_paid"},{"id":3281,"date":"2026-02-12","due":"2026-02-12","residual":6613.93,"days_overdue":98,"status":"not_paid"}],"oldest_days":98,"priority":9052.0,"severity":"critical"},{"partner":"Agence STI","total_du":2224.08,"nb_factures":8,"factures":[{"id":3474,"date":"2026-05-15","due":"2026-05-15","residual":622.08,"days_overdue":6,"status":"not_paid"},{"id":3450,"date":"2026-04-21","due":"2026-04-21","residual":200.0,"days_overdue":30,"status":"not_paid"},{"id":3428,"date":"2026-04-08","due":"2026-04-08","residual":200.0,"days_overdue":43,"status":"not_paid"},{"id":3427,"date":"2026-04-08","due":"2026-04-08","residual":150.0,"days_overdue":43,"status":"not_paid"},{"id":3424,"date":"2026-04-08","due":"2026-04-08","residual":200.0,"days_overdue":43,"status":"not_paid"},{"id":2431,"date":"2025-07-25","due":"2025-07-25","residual":162.0,"days_overdue":300,"status":"not_paid"},{"id":2061,"date":"2025-04-29","due":"2025-04-29","residual":150.0,"days_overdue":387,"status":"not_paid"},{"id":1689,"date":"2025-01-27","due":"2025-01-27","residual":540.0,"days_overdue":479,"status":"not_paid"}],"oldest_days":479,"priority":8118.0,"severity":"critical"},{"partner":"SCI CODEV IMMO","total_du":2295.07,"nb_factures":1,"factures":[{"id":2338,"date":"2025-07-01","due":"2025-07-01","residual":2295.07,"days_overdue":324,"status":"not_paid"}],"oldest_days":324,"priority":7436.0,"severity":"critical"},{"partner":"Sci Maison Verte","total_du":1899.36,"nb_factures":3,"factures":[{"id":1578,"date":"2025-01-02","due":"2025-01-02","residual":1026.0,"days_overdue":504,"status":"partial"},{"id":1415,"date":"2024-11-22","due":"2024-11-22","residual":436.68,"days_overdue":545,"status":"not_paid"},{"id":1414,"date":"2024-11-22","due":"2024-12-25","residual":436.68,"days_overdue":512,"status":"not_paid"}],"oldest_days":545,"priority":6933.0,"severity":"critical"},{"partner":"Mr Foppolo","total_du":1887.31,"nb_factures":1,"factures":[{"id":2410,"date":"2025-07-18","due":"2025-07-18","residual":1887.31,"days_overdue":307,"status":"not_paid"}],"oldest_days":307,"priority":5794.0,"severity":"critical"},{"partner":"Jérôme BILLARD  SARL PROMETHEUS","total_du":3202.62,"nb_factures":2,"factures":[{"id":3378,"date":"2026-03-10","due":"2026-03-10","residual":2468.89,"days_overdue":72,"status":"not_paid"},{"id":3170,"date":"2026-01-15","due":"2026-01-15","residual":733.73,"days_overdue":126,"status":"partial"}],"oldest_days":126,"priority":4035.0,"severity":"critical"},{"partner":"SARL STAG","total_du":1146.17,"nb_factures":2,"factures":[{"id":2259,"date":"2025-06-17","due":"2025-06-17","residual":992.17,"days_overdue":338,"status":"not_paid"},{"id":2218,"date":"2025-06-05","due":"2025-06-05","residual":154.0,"days_overdue":350,"status":"not_paid"}],"oldest_days":350,"priority":4012.0,"severity":"critical"},{"partner":"KFM Toiture peinture étanchéité Mr Kerherno Franck","total_du":2211.0,"nb_factures":1,"factures":[{"id":3028,"date":"2025-12-05","due":"2025-12-05","residual":2211.0,"days_overdue":167,"status":"not_paid"}],"oldest_days":167,"priority":3692.0,"severity":"critical"},{"partner":"Mr Saettel","total_du":1000.0,"nb_factures":1,"factures":[{"id":1592,"date":"2025-01-06","due":"2025-01-06","residual":1000.0,"days_overdue":500,"status":"partial"}],"oldest_days":500,"priority":3650.0,"severity":"critical"},{"partner":"Ambrosino","total_du":982.7,"nb_factures":2,"factures":[{"id":1589,"date":"2025-01-06","due":"2025-01-06","residual":150.0,"days_overdue":500,"status":"not_paid"},{"id":1588,"date":"2025-01-06","due":"2025-01-06","residual":832.7,"days_overdue":500,"status":"not_paid"}],"oldest_days":500,"priority":3587.0,"severity":"critical"},{"partner":"Copropriété Le Babylone","total_du":3890.48,"nb_factures":1,"factures":[{"id":3327,"date":"2026-02-19","due":"2026-02-19","residual":3890.48,"days_overdue":91,"status":"not_paid"}],"oldest_days":91,"priority":3540.0,"severity":"critical"},{"partner":"SCI le Clos des Murgues","total_du":1000.0,"nb_factures":1,"factures":[{"id":2268,"date":"2025-06-18","due":"2025-06-18","residual":1000.0,"days_overdue":337,"status":"partial"}],"oldest_days":337,"priority":3370.0,"severity":"critical"},{"partner":"Me Derville","total_du":1045.0,"nb_factures":2,"factures":[{"id":2457,"date":"2025-07-30","due":"2025-07-30","residual":847.0,"days_overdue":295,"status":"not_paid"},{"id":2454,"date":"2025-07-30","due":"2025-07-30","residual":198.0,"days_overdue":295,"status":"not_paid"}],"oldest_days":295,"priority":3083.0,"severity":"critical"},{"partner":"Mme Fievee","total_du":832.0,"nb_factures":2,"factures":[{"id":1673,"date":"2025-01-20","due":"2025-01-20","residual":682.0,"days_overdue":486,"status":"not_paid"},{"id":1593,"date":"2025-01-06","due":"2025-01-06","residual":150.0,"days_overdue":500,"status":"not_paid"}],"oldest_days":500,"priority":3037.0,"severity":"critical"},{"partner":"SCI clemm","total_du":792.0,"nb_factures":1,"factures":[{"id":1524,"date":"2024-12-12","due":"2024-12-12","residual":792.0,"days_overdue":525,"status":"not_paid"}],"oldest_days":525,"priority":2891.0,"severity":"critical"},{"partner":"Mr Carpentier","total_du":796.4,"nb_factures":1,"factures":[{"id":2300,"date":"2025-06-23","due":"2025-06-23","residual":796.4,"days_overdue":332,"status":"not_paid"}],"oldest_days":332,"priority":2644.0,"severity":"critical"},{"partner":"Mme de Agostini","total_du":1504.47,"nb_factures":1,"factures":[{"id":3010,"date":"2025-12-02","due":"2025-12-02","residual":1504.47,"days_overdue":170,"status":"not_paid"}],"oldest_days":170,"priority":2558.0,"severity":"critical"},{"partner":"Mr et Mme. Penhard","total_du":605.0,"nb_factures":1,"factures":[{"id":1727,"date":"2025-02-19","due":"2025-02-19","residual":605.0,"days_overdue":456,"status":"not_paid"}],"oldest_days":456,"priority":2208.0,"severity":"critical"},{"partner":"Mme Picard","total_du":571.1,"nb_factures":1,"factures":[{"id":1996,"date":"2025-04-15","due":"2025-04-15","residual":571.1,"days_overdue":401,"status":"not_paid"}],"oldest_days":401,"priority":2085.0,"severity":"critical"},{"partner":"Mme Seguin","total_du":643.0,"nb_factures":2,"factures":[{"id":2452,"date":"2025-07-30","due":"2025-07-30","residual":445.0,"days_overdue":295,"status":"partial"},{"id":2451,"date":"2025-07-30","due":"2025-07-30","residual":198.0,"days_overdue":295,"status":"not_paid"}],"oldest_days":295,"priority":1897.0,"severity":"critical"},{"partner":"Mr Lubin","total_du":513.7,"nb_factures":1,"factures":[{"id":1808,"date":"2025-03-03","due":"2025-03-03","residual":513.7,"days_overdue":444,"status":"not_paid"}],"oldest_days":444,"priority":1875.0,"severity":"critical"},{"partner":"Mme Barrier","total_du":450.0,"nb_factures":3,"factures":[{"id":1869,"date":"2025-03-12","due":"2025-03-12","residual":150.0,"days_overdue":435,"status":"partial"},{"id":1856,"date":"2025-03-07","due":"2025-03-07","residual":150.0,"days_overdue":440,"status":"not_paid"},{"id":1828,"date":"2025-03-04","due":"2025-03-04","residual":150.0,"days_overdue":443,"status":"not_paid"}],"oldest_days":443,"priority":1642.0,"severity":"critical"},{"partner":"Mr Elfilali","total_du":461.05,"nb_factures":1,"factures":[{"id":2269,"date":"2025-06-18","due":"2025-06-18","residual":461.05,"days_overdue":337,"status":"not_paid"}],"oldest_days":337,"priority":1554.0,"severity":"critical"},{"partner":"Alain Daunis","total_du":350.0,"nb_factures":1,"factures":[{"id":1591,"date":"2025-01-06","due":"2025-01-06","residual":350.0,"days_overdue":500,"status":"not_paid"}],"oldest_days":500,"priority":1278.0,"severity":"critical"},{"partner":"Alain Poidevin","total_du":349.99,"nb_factures":1,"factures":[{"id":1478,"date":"2024-12-03","due":"2024-12-03","residual":349.99,"days_overdue":534,"status":"not_paid"}],"oldest_days":534,"priority":1277.0,"severity":"critical"},{"partner":"Sci ecusson ZN","total_du":344.04,"nb_factures":1,"factures":[{"id":1840,"date":"2025-03-06","due":"2025-03-06","residual":344.04,"days_overdue":441,"status":"not_paid"}],"oldest_days":441,"priority":1256.0,"severity":"critical"},{"partner":"M. Cernoneschi","total_du":332.0,"nb_factures":1,"factures":[{"id":1530,"date":"2024-12-13","due":"2024-12-13","residual":332.0,"days_overdue":524,"status":"partial"}],"oldest_days":524,"priority":1212.0,"severity":"critical"},{"partner":"Mme Gonzalez","total_du":1116.3,"nb_factures":3,"factures":[{"id":3239,"date":"2026-02-04","due":"2026-02-04","residual":718.3,"days_overdue":106,"status":"not_paid"},{"id":3238,"date":"2026-02-04","due":"2026-02-04","residual":200.0,"days_overdue":106,"status":"not_paid"},{"id":3237,"date":"2026-02-04","due":"2026-02-04","residual":198.0,"days_overdue":106,"status":"partial"}],"oldest_days":106,"priority":1183.0,"severity":"critical"},{"partner":"Mr Girot","total_du":1964.6,"nb_factures":3,"factures":[{"id":3413,"date":"2026-04-07","due":"2026-04-07","residual":982.3,"days_overdue":44,"status":"not_paid"},{"id":3410,"date":"2026-04-07","due":"2026-04-07","residual":77.0,"days_overdue":44,"status":"not_paid"},{"id":3406,"date":"2026-03-27","due":"2026-03-27","residual":905.3,"days_overdue":55,"status":"not_paid"}],"oldest_days":55,"priority":1081.0,"severity":"red"},{"partner":"Mr et Mme Mathonnet","total_du":250.0,"nb_factures":1,"factures":[{"id":1587,"date":"2025-01-06","due":"2025-01-06","residual":250.0,"days_overdue":500,"status":"not_paid"}],"oldest_days":500,"priority":912.0,"severity":"critical"},{"partner":"Sci Les mas du midi","total_du":249.0,"nb_factures":1,"factures":[{"id":1538,"date":"2024-12-13","due":"2024-12-13","residual":249.0,"days_overdue":524,"status":"not_paid"}],"oldest_days":524,"priority":909.0,"severity":"critical"},{"partner":"Mr et Mme Fritsch","total_du":262.59,"nb_factures":1,"factures":[{"id":2293,"date":"2025-06-20","due":"2025-06-20","residual":262.59,"days_overdue":335,"status":"not_paid"}],"oldest_days":335,"priority":880.0,"severity":"critical"},{"partner":"EURL Immobat","total_du":240.0,"nb_factures":1,"factures":[{"id":1822,"date":"2025-03-04","due":"2025-03-04","residual":240.0,"days_overdue":443,"status":"not_paid"}],"oldest_days":443,"priority":876.0,"severity":"critical"},{"partner":"MOSCARDO Estelle","total_du":250.0,"nb_factures":1,"factures":[{"id":2298,"date":"2025-06-23","due":"2025-06-23","residual":250.0,"days_overdue":332,"status":"not_paid"}],"oldest_days":332,"priority":830.0,"severity":"critical"},{"partner":"Isabelle Barra","total_du":220.0,"nb_factures":1,"factures":[{"id":1637,"date":"2025-01-10","due":"2025-01-10","residual":220.0,"days_overdue":496,"status":"not_paid"}],"oldest_days":496,"priority":803.0,"severity":"critical"},{"partner":"Mr Fabre","total_du":1323.08,"nb_factures":1,"factures":[{"id":3404,"date":"2026-03-25","due":"2026-03-25","residual":1323.08,"days_overdue":57,"status":"not_paid"}],"oldest_days":57,"priority":754.0,"severity":"red"},{"partner":"Mme Parslow Madelaine","total_du":290.0,"nb_factures":2,"factures":[{"id":2614,"date":"2025-09-04","due":"2025-09-04","residual":90.0,"days_overdue":259,"status":"not_paid"},{"id":2612,"date":"2025-09-04","due":"2025-09-04","residual":200.0,"days_overdue":259,"status":"not_paid"}],"oldest_days":259,"priority":751.0,"severity":"critical"},{"partner":"Mme Mesplé","total_du":200.0,"nb_factures":1,"factures":[{"id":2091,"date":"2025-05-05","due":"2025-05-05","residual":200.0,"days_overdue":381,"status":"not_paid"}],"oldest_days":381,"priority":730.0,"severity":"critical"},{"partner":"Mr Pezon","total_du":200.0,"nb_factures":1,"factures":[{"id":2013,"date":"2025-04-18","due":"2025-04-18","residual":200.0,"days_overdue":398,"status":"not_paid"}],"oldest_days":398,"priority":730.0,"severity":"critical"},{"partner":"Mme Frechet","total_du":200.0,"nb_factures":1,"factures":[{"id":1995,"date":"2025-04-15","due":"2025-04-15","residual":200.0,"days_overdue":401,"status":"not_paid"}],"oldest_days":401,"priority":730.0,"severity":"critical"},{"partner":"Gonzalez Eulalia","total_du":200.0,"nb_factures":1,"factures":[{"id":1855,"date":"2025-03-07","due":"2025-03-07","residual":200.0,"days_overdue":440,"status":"not_paid"}],"oldest_days":440,"priority":730.0,"severity":"critical"},{"partner":"Mr Vuille Gérard","total_du":200.0,"nb_factures":1,"factures":[{"id":1823,"date":"2025-03-04","due":"2025-03-04","residual":200.0,"days_overdue":443,"status":"not_paid"}],"oldest_days":443,"priority":730.0,"severity":"critical"},{"partner":"Cadiere Celine","total_du":200.0,"nb_factures":1,"factures":[{"id":1532,"date":"2024-12-13","due":"2024-12-13","residual":200.0,"days_overdue":524,"status":"not_paid"}],"oldest_days":524,"priority":730.0,"severity":"critical"},{"partner":"Mr Jean","total_du":180.0,"nb_factures":1,"factures":[{"id":1915,"date":"2025-03-21","due":"2025-03-21","residual":180.0,"days_overdue":426,"status":"not_paid"}],"oldest_days":426,"priority":657.0,"severity":"critical"},{"partner":"Mr Setiée","total_du":180.0,"nb_factures":1,"factures":[{"id":1377,"date":"2024-11-15","due":"2024-12-15","residual":180.0,"days_overdue":522,"status":"not_paid"}],"oldest_days":522,"priority":657.0,"severity":"critical"},{"partner":"Mr et Mme De la Paz","total_du":198.2,"nb_factures":2,"factures":[{"id":2663,"date":"2025-09-12","due":"2025-09-12","residual":0.2,"days_overdue":251,"status":"partial"},{"id":2411,"date":"2025-07-18","due":"2025-07-18","residual":198.0,"days_overdue":307,"status":"not_paid"}],"oldest_days":307,"priority":608.0,"severity":"critical"},{"partner":"Mr Capdevila","total_du":180.0,"nb_factures":1,"factures":[{"id":2290,"date":"2025-06-20","due":"2025-06-20","residual":180.0,"days_overdue":335,"status":"not_paid"}],"oldest_days":335,"priority":603.0,"severity":"critical"},{"partner":"Mr Barral-Baron","total_du":713.2,"nb_factures":1,"factures":[{"id":3353,"date":"2026-03-02","due":"2026-03-02","residual":713.2,"days_overdue":80,"status":"not_paid"}],"oldest_days":80,"priority":571.0,"severity":"red"},{"partner":"Laurent Fouquet","total_du":150.0,"nb_factures":1,"factures":[{"id":1825,"date":"2025-03-04","due":"2025-03-04","residual":150.0,"days_overdue":443,"status":"not_paid"}],"oldest_days":443,"priority":548.0,"severity":"critical"},{"partner":"Mr Hab Mohamed","total_du":150.0,"nb_factures":1,"factures":[{"id":1785,"date":"2025-02-25","due":"2025-02-25","residual":150.0,"days_overdue":450,"status":"not_paid"}],"oldest_days":450,"priority":548.0,"severity":"critical"},{"partner":"Christian Bidault","total_du":150.0,"nb_factures":1,"factures":[{"id":1583,"date":"2025-01-06","due":"2025-01-06","residual":150.0,"days_overdue":500,"status":"not_paid"}],"oldest_days":500,"priority":548.0,"severity":"critical"},{"partner":"Mr et Mme Gutierrez","total_du":150.0,"nb_factures":1,"factures":[{"id":1480,"date":"2024-12-03","due":"2024-12-03","residual":150.0,"days_overdue":534,"status":"not_paid"}],"oldest_days":534,"priority":548.0,"severity":"critical"},{"partner":"Mr Cordier","total_du":150.0,"nb_factures":1,"factures":[{"id":1479,"date":"2024-12-03","due":"2024-12-03","residual":150.0,"days_overdue":534,"status":"not_paid"}],"oldest_days":534,"priority":548.0,"severity":"critical"},{"partner":"Mr Lakbir Loïc","total_du":200.0,"nb_factures":1,"factures":[{"id":2678,"date":"2025-10-03","due":"2025-10-03","residual":200.0,"days_overdue":230,"status":"not_paid"}],"oldest_days":230,"priority":460.0,"severity":"critical"},{"partner":"Surho Architecture","total_du":868.8,"nb_factures":1,"factures":[{"id":3430,"date":"2026-04-09","due":"2026-04-09","residual":868.8,"days_overdue":42,"status":"not_paid"}],"oldest_days":42,"priority":365.0,"severity":"orange"},{"partner":"Mr Robert Guy","total_du":821.0,"nb_factures":2,"factures":[{"id":3415,"date":"2026-04-07","due":"2026-04-07","residual":150.0,"days_overdue":44,"status":"not_paid"},{"id":3414,"date":"2026-04-07","due":"2026-04-07","residual":671.0,"days_overdue":44,"status":"not_paid"}],"oldest_days":44,"priority":361.0,"severity":"orange"},{"partner":"SDC LE PARADOR  S/C FONCIA","total_du":216.0,"nb_factures":1,"factures":[{"id":3086,"date":"2025-12-18","due":"2025-12-18","residual":216.0,"days_overdue":154,"status":"not_paid"}],"oldest_days":154,"priority":333.0,"severity":"critical"},{"partner":"Mr Guittenit","total_du":150.0,"nb_factures":1,"factures":[{"id":2688,"date":"2025-10-15","due":"2025-10-15","residual":150.0,"days_overdue":218,"status":"not_paid"}],"oldest_days":218,"priority":327.0,"severity":"critical"},{"partner":"BET AM","total_du":670.8,"nb_factures":1,"factures":[{"id":3433,"date":"2026-04-13","due":"2026-04-13","residual":670.8,"days_overdue":38,"status":"not_paid"}],"oldest_days":38,"priority":255.0,"severity":"orange"},{"partner":"Mr Kikmoun","total_du":697.2,"nb_factures":2,"factures":[{"id":3472,"date":"2026-05-12","due":"2026-05-12","residual":497.2,"days_overdue":9,"status":"not_paid"},{"id":3456,"date":"2026-04-24","due":"2026-04-24","residual":200.0,"days_overdue":27,"status":"not_paid"}],"oldest_days":27,"priority":188.0,"severity":"orange"},{"partner":"Mr DRANGUET","total_du":638.55,"nb_factures":1,"factures":[{"id":3454,"date":"2026-04-23","due":"2026-04-23","residual":638.55,"days_overdue":28,"status":"not_paid"}],"oldest_days":28,"priority":179.0,"severity":"orange"},{"partner":"Mme Pernot sous la tutelle de Mme Sylvie Pernot","total_du":150.0,"nb_factures":1,"factures":[{"id":3218,"date":"2026-01-30","due":"2026-01-29","residual":150.0,"days_overdue":112,"status":"not_paid"}],"oldest_days":112,"priority":168.0,"severity":"critical"},{"partner":"M Poznansky","total_du":200.0,"nb_factures":1,"factures":[{"id":3363,"date":"2026-03-03","due":"2026-03-03","residual":200.0,"days_overdue":79,"status":"not_paid"}],"oldest_days":79,"priority":158.0,"severity":"red"},{"partner":"Poiré Julien","total_du":200.0,"nb_factures":1,"factures":[{"id":3377,"date":"2026-03-10","due":"2026-03-10","residual":200.0,"days_overdue":72,"status":"not_paid"}],"oldest_days":72,"priority":144.0,"severity":"red"},{"partner":"2H energy","total_du":200.0,"nb_factures":1,"factures":[{"id":3374,"date":"2026-03-10","due":"2026-03-10","residual":200.0,"days_overdue":72,"status":"not_paid"}],"oldest_days":72,"priority":144.0,"severity":"red"},{"partner":"Foncia Littoral","total_du":1419.0,"nb_factures":1,"factures":[{"id":3468,"date":"2026-05-11","due":"2026-05-11","residual":1419.0,"days_overdue":10,"status":"not_paid"}],"oldest_days":10,"priority":142.0,"severity":"green"},{"partner":"Boukaker Lathuile","total_du":330.0,"nb_factures":1,"factures":[{"id":3419,"date":"2026-04-08","due":"2026-04-08","residual":330.0,"days_overdue":43,"status":"not_paid"}],"oldest_days":43,"priority":142.0,"severity":"orange"},{"partner":"Mme GEROLIMATOS","total_du":200.0,"nb_factures":1,"factures":[{"id":3383,"date":"2026-03-12","due":"2026-03-12","residual":200.0,"days_overdue":70,"status":"not_paid"}],"oldest_days":70,"priority":140.0,"severity":"red"},{"partner":"Mr Hervé Ludovic de Lys","total_du":200.0,"nb_factures":1,"factures":[{"id":3386,"date":"2026-03-13","due":"2026-03-13","residual":200.0,"days_overdue":69,"status":"not_paid"}],"oldest_days":69,"priority":138.0,"severity":"red"},{"partner":"Mr Le Bail","total_du":200.0,"nb_factures":1,"factures":[{"id":3385,"date":"2026-03-13","due":"2026-03-13","residual":200.0,"days_overdue":69,"status":"not_paid"}],"oldest_days":69,"priority":138.0,"severity":"red"},{"partner":"Mr Bussier","total_du":200.0,"nb_factures":1,"factures":[{"id":3384,"date":"2026-03-13","due":"2026-03-13","residual":200.0,"days_overdue":69,"status":"not_paid"}],"oldest_days":69,"priority":138.0,"severity":"red"},{"partner":"Mme Vialle","total_du":293.7,"nb_factures":1,"factures":[{"id":3438,"date":"2026-04-14","due":"2026-04-14","residual":293.7,"days_overdue":37,"status":"not_paid"}],"oldest_days":37,"priority":109.0,"severity":"orange"},{"partner":"SCI la filature","total_du":150.0,"nb_factures":1,"factures":[{"id":3381,"date":"2026-03-11","due":"2026-03-11","residual":150.0,"days_overdue":71,"status":"not_paid"}],"oldest_days":71,"priority":106.0,"severity":"red"},{"partner":"Mme et Mr Roucairol","total_du":150.0,"nb_factures":1,"factures":[{"id":3389,"date":"2026-03-18","due":"2026-03-18","residual":150.0,"days_overdue":64,"status":"not_paid"}],"oldest_days":64,"priority":96.0,"severity":"red"},{"partner":"Mr Robert Crespo","total_du":150.0,"nb_factures":1,"factures":[{"id":3388,"date":"2026-03-18","due":"2026-03-18","residual":150.0,"days_overdue":64,"status":"not_paid"}],"oldest_days":64,"priority":96.0,"severity":"red"},{"partner":"Mr Malaval Remy","total_du":150.0,"nb_factures":1,"factures":[{"id":3401,"date":"2026-03-20","due":"2026-03-20","residual":150.0,"days_overdue":62,"status":"not_paid"}],"oldest_days":62,"priority":93.0,"severity":"red"},{"partner":"Mme CLARAC","total_du":150.0,"nb_factures":1,"factures":[{"id":3403,"date":"2026-03-23","due":"2026-03-23","residual":150.0,"days_overdue":59,"status":"not_paid"}],"oldest_days":59,"priority":88.0,"severity":"red"},{"partner":"Mr Casteur","total_du":200.0,"nb_factures":1,"factures":[{"id":3426,"date":"2026-04-08","due":"2026-04-08","residual":200.0,"days_overdue":43,"status":"not_paid"}],"oldest_days":43,"priority":86.0,"severity":"orange"},{"partner":"SCI la Domitienne","total_du":200.0,"nb_factures":1,"factures":[{"id":3429,"date":"2026-04-09","due":"2026-04-09","residual":200.0,"days_overdue":42,"status":"not_paid"}],"oldest_days":42,"priority":84.0,"severity":"orange"},{"partner":"Mme Marulier","total_du":150.0,"nb_factures":1,"factures":[{"id":3425,"date":"2026-04-08","due":"2026-04-08","residual":150.0,"days_overdue":43,"status":"not_paid"}],"oldest_days":43,"priority":64.0,"severity":"orange"},{"partner":"Mr Dumay","total_du":200.0,"nb_factures":1,"factures":[{"id":3440,"date":"2026-04-20","due":"2026-04-20","residual":200.0,"days_overdue":31,"status":"not_paid"}],"oldest_days":31,"priority":62.0,"severity":"orange"},{"partner":"Mr Catelon","total_du":200.0,"nb_factures":1,"factures":[{"id":3439,"date":"2026-04-20","due":"2026-04-20","residual":200.0,"days_overdue":31,"status":"not_paid"}],"oldest_days":31,"priority":62.0,"severity":"orange"},{"partner":"Sdc Le Cottage Domis Montpellier","total_du":200.0,"nb_factures":1,"factures":[{"id":3448,"date":"2026-04-21","due":"2026-04-21","residual":200.0,"days_overdue":30,"status":"not_paid"}],"oldest_days":30,"priority":60.0,"severity":"orange"},{"partner":"Mme Steck","total_du":200.0,"nb_factures":1,"factures":[{"id":3463,"date":"2026-04-28","due":"2026-04-28","residual":200.0,"days_overdue":23,"status":"not_paid"}],"oldest_days":23,"priority":46.0,"severity":"orange"},{"partner":"Mme Perret","total_du":150.0,"nb_factures":1,"factures":[{"id":3442,"date":"2026-04-20","due":"2026-04-20","residual":150.0,"days_overdue":31,"status":"not_paid"}],"oldest_days":31,"priority":46.0,"severity":"orange"},{"partner":"Mme Clanet","total_du":150.0,"nb_factures":1,"factures":[{"id":3457,"date":"2026-04-24","due":"2026-04-24","residual":150.0,"days_overdue":27,"status":"not_paid"}],"oldest_days":27,"priority":40.0,"severity":"orange"},{"partner":"Mme Roussel","total_du":200.0,"nb_factures":1,"factures":[{"id":3465,"date":"2026-05-04","due":"2026-05-04","residual":200.0,"days_overdue":17,"status":"not_paid"}],"oldest_days":17,"priority":34.0,"severity":"orange"},{"partner":"Mme Sigier","total_du":200.0,"nb_factures":1,"factures":[{"id":3466,"date":"2026-05-05","due":"2026-05-05","residual":200.0,"days_overdue":16,"status":"not_paid"}],"oldest_days":16,"priority":32.0,"severity":"orange"},{"partner":"Mr Ribas Serge","total_du":100.0,"nb_factures":1,"factures":[{"id":3445,"date":"2026-04-20","due":"2026-04-20","residual":100.0,"days_overdue":31,"status":"not_paid"}],"oldest_days":31,"priority":31.0,"severity":"orange"},{"partner":"Mr Aprin","total_du":200.0,"nb_factures":1,"factures":[{"id":3476,"date":"2026-05-18","due":"2026-05-18","residual":200.0,"days_overdue":3,"status":"not_paid"}],"oldest_days":3,"priority":6.0,"severity":"green"},{"partner":"Mr Le Pavec","total_du":137.5,"nb_factures":1,"factures":[{"id":3510,"date":"2026-05-19","due":"2026-05-19","residual":137.5,"days_overdue":2,"status":"not_paid"}],"oldest_days":2,"priority":3.0,"severity":"green"},{"partner":"Mr Sluysmans","total_du":150.0,"nb_factures":1,"factures":[{"id":3509,"date":"2026-05-19","due":"2026-05-19","residual":150.0,"days_overdue":2,"status":"not_paid"}],"oldest_days":2,"priority":3.0,"severity":"green"},{"partner":"Domaine de Saint Pierre","total_du":0.08,"nb_factures":1,"factures":[{"id":2195,"date":"2025-06-03","due":"2025-06-03","residual":0.08,"days_overdue":352,"status":"partial"}],"oldest_days":352,"priority":0.0,"severity":"critical"},{"partner":"Mme Vigues","total_du":0.1,"nb_factures":1,"factures":[{"id":1913,"date":"2025-03-21","due":"2025-03-21","residual":0.1,"days_overdue":426,"status":"partial"}],"oldest_days":426,"priority":0.0,"severity":"critical"}];
+const LAST_UPDATE_ISO = "2026-05-21T12:23:27.353789";
+const LAST_UPDATE_FR  = "21/05/2026 à 12h23";
+const THRESHOLDS  = {"diode_orange_hours": 24, "diode_red_hours": 48, "appels_orange_hours": 24, "appels_red_hours": 48, "overdue_orange_days": 15, "overdue_red_days": 45, "overdue_critical_days": 90};
+
+// ── ÉTAT ─────────────────────────────────────────────
+let dateFrom=null, dateTo=null, charts={};
+
+// ── UTILS ────────────────────────────────────────────
+const fr2 = n => Number(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fri  = n => Number(n).toLocaleString('fr-FR',{maximumFractionDigits:0});
+const pct  = (a,b) => b>0 ? Math.round(a/b*1000)/10 : 0;
+const today = new Date(); today.setHours(23,59,59,0);
+const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+
+function parseD(s){ if(!s||s==='False'||s==='false') return null; return new Date(s); }
+function inRange(d){
+  const dt=parseD(d); if(!dt) return false;
+  if(dateFrom&&dt<dateFrom) return false;
+  if(dateTo&&dt>dateTo) return false;
+  return true;
+}
+function prevRange(){
+  if(!dateFrom||!dateTo) return null;
+  const span=dateTo-dateFrom;
+  return {from:new Date(dateFrom-span-86400000), to:new Date(dateFrom-86400000)};
+}
+function inPrev(d){
+  const pr=prevRange(); if(!pr) return false;
+  const dt=parseD(d); if(!dt) return false;
+  return dt>=pr.from&&dt<=pr.to;
+}
+function daysOverdue(due){ const d=parseD(due); if(!d) return 0; return Math.max(0,Math.round((todayStart-d)/86400000)); }
+
+// Delta helpers
+function deltaDir(v,r){ if(r===0) return 'flat'; const d=(v-r)/r*100; return d>1?'up':d<-1?'down':'flat'; }
+function deltaStr(v,r){ if(r===0||!r) return null; const d=(v-r)/r*100; return (d>0?'+':'')+d.toFixed(1)+'%'; }
+function deltaNum(v,r){ if(!r) return null; const d=v-r; return (d>0?'+':'')+fri(d); }
+
+function killChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+// ── PERIOD PRESETS ───────────────────────────────────
+function setPreset(p){
+  const now=new Date(); const y=now.getFullYear(); let f,t;
+  if(p==='month'){f=new Date(y,now.getMonth(),1);t=new Date(y,now.getMonth()+1,0,23,59,59);}
+  else if(p==='prevmonth'){
+    const pm=now.getMonth()===0?11:now.getMonth()-1;
+    const py=now.getMonth()===0?y-1:y;
+    f=new Date(py,pm,1); t=new Date(py,pm+1,0,23,59,59);
+  }
+  else if(p==='q1'){f=new Date(y,0,1);t=new Date(y,2,31,23,59,59);}
+  else if(p==='q2'){f=new Date(y,3,1);t=new Date(y,5,30,23,59,59);}
+  else if(p==='q3'){f=new Date(y,6,1);t=new Date(y,8,30,23,59,59);}
+  else if(p==='q4'){f=new Date(y,9,1);t=new Date(y,11,31,23,59,59);}
+  else if(p==='y2024'){f=new Date(2024,0,1);t=new Date(2024,11,31,23,59,59);}
+  else if(p==='y2025'){f=new Date(2025,0,1);t=new Date(2025,11,31,23,59,59);}
+  else if(p==='y2026'){f=new Date(2026,0,1);t=new Date(2026,11,31,23,59,59);}
+  else{f=null;t=null;}
+  dateFrom=f; dateTo=t;
+  document.getElementById('dateFrom').value=f?f.toISOString().slice(0,10):'';
+  document.getElementById('dateTo').value=t?t.toISOString().slice(0,10):'';
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  updateBadge(); renderAll();
+}
+function applyCustomRange(){
+  const f=document.getElementById('dateFrom').value, t=document.getElementById('dateTo').value;
+  dateFrom=f?new Date(f):null; dateTo=t?new Date(t+'T23:59:59'):null;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  updateBadge(); renderAll();
+}
+function updateBadge(){
+  const pr=prevRange(); const el=document.getElementById('compareTxt');
+  if(!pr){el.textContent='—';return;}
+  const fmt=d=>d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+  el.textContent=fmt(pr.from)+' → '+fmt(pr.to);
+}
+
+function filtered(){ return RAW_INVS.filter(i=>inRange(i.date)); }
+function filteredPrev(){ return RAW_INVS.filter(i=>inPrev(i.date)); }
+function filteredRefs(){ return RAW_REFUNDS.filter(r=>inRange(r.date)); }
+
+// ── COMPUTE ──────────────────────────────────────────
+function computeAll(invs,prev,refs){
+  const ht   = invs.reduce((s,i)=>s+i.ht,0);
+  const ttc  = invs.reduce((s,i)=>s+i.ttc,0);
+  const rest = invs.reduce((s,i)=>s+i.residual,0);
+  const paid = ttc-rest;
+  const tva  = invs.reduce((s,i)=>s+i.tva,0);
+  const refTotal = refs.reduce((s,r)=>s+r.ttc,0);
+  const n    = invs.length;
+  const nPaid    = invs.filter(i=>i.status==='paid').length;
+  const nUnpaid  = invs.filter(i=>i.status==='not_paid').length;
+  const nPartial = invs.filter(i=>i.status==='partial').length;
+  const tauxEnc  = pct(paid,ttc);
+  const panierHT = n>0?ht/n:0;
+  const clients  = [...new Set(invs.map(i=>i.partner).filter(p=>p&&p!=='Inconnu'))];
+  const overdue  = invs.filter(i=>i.status!=='paid'&&parseD(i.due)&&parseD(i.due)<todayStart);
+  const overdueAmt = overdue.reduce((s,i)=>s+i.residual,0);
+  const delays   = overdue.map(i=>daysOverdue(i.due));
+  const delayMoy = delays.length?Math.round(delays.reduce((a,b)=>a+b,0)/delays.length):0;
+  const ratioAvoir = pct(refTotal,ttc);
+  const clientCA = {};
+  invs.forEach(i=>{clientCA[i.partner]=(clientCA[i.partner]||0)+i.ttc;});
+  const sorted = Object.entries(clientCA).sort((a,b)=>b[1]-a[1]);
+  const mths   = new Set(invs.map(i=>i.date?.slice(0,7)).filter(Boolean));
+  const avgPerMth = mths.size>0?Math.round(n/mths.size):0;
+  const now2   = new Date(); const elapsed=now2.getMonth()+(now2.getDate()/30);
+  const proj   = elapsed>0?Math.round(ht/elapsed*12):0;
+  const prevTTC = prev.reduce((s,i)=>s+i.ttc,0);
+  const prevHT  = prev.reduce((s,i)=>s+i.ht,0);
+  const prevN   = prev.length;
+  const prevPanierHT = prevN>0?prevHT/prevN:0;
+  const prevRest = prev.reduce((s,i)=>s+i.residual,0);
+  const prevOverdue = prev.filter(i=>i.status!=='paid'&&parseD(i.due)&&parseD(i.due)<todayStart);
+  const prevOverdueAmt = prevOverdue.reduce((s,i)=>s+i.residual,0);
+  return {ht,ttc,rest,paid,tva,refTotal,n,nPaid,nUnpaid,nPartial,tauxEnc,panierHT,
+    nbClients:clients.length,overdue:overdue.length,overdueAmt,delayMoy,
+    ratioAvoir,sorted,clientCA,avgPerMth,proj,
+    prevTTC,prevHT,prevN,prevPanierHT,prevRest,prevOverdueAmt,prevOverdue:prevOverdue.length};
+}
+
+// ── RENDER HERO KPIs ──────────────────────────────────
+function renderHero(k){
+  // 1. Montant impayé  2. CA HT  3. CA TTC  4. Nb factures
+  const hasPrev = k.prevHT > 0 || k.prevTTC > 0;
+  const caHTdir = deltaDir(k.ht, k.prevHT);
+  const caTTCdir = deltaDir(k.ttc, k.prevTTC);
+  const nbDir = deltaDir(k.n, k.prevN);
+  const impPct = pct(k.rest, k.ttc);
+  const impPill = impPct>20?'r':impPct>10?'o':'g';
+
+  const heroes = [
+    {
+      label:'Montant impayé',
+      value: fr2(k.rest)+' €',
+      sub: (k.nUnpaid+k.nPartial)+' factures ouvertes',
+      pill: impPct+'% du CA',
+      pillClass: impPill,
+      delta: hasPrev&&k.prevRest>0 ? deltaStr(k.rest,k.prevRest) : null,
+      dir: deltaDir(k.rest,k.prevRest)==='up'?'down':deltaDir(k.rest,k.prevRest)==='down'?'up':'flat', // inverse: baisser c'est bien
+      kc:'#f85149',
+      tip:'Somme des montants restant à encaisser sur toutes les factures non payées ou partiellement payées. Plus ce chiffre est bas, mieux c\'est.'
+    },
+    {
+      label:'CA HT',
+      value: fr2(k.ht)+' €',
+      sub: 'Hors taxes · '+k.n+' factures',
+      pill: hasPrev&&k.prevHT>0 ? deltaStr(k.ht,k.prevHT) : null,
+      pillClass: caHTdir==='up'?'g':caHTdir==='down'?'r':'o',
+      delta: hasPrev&&k.prevHT>0 ? deltaStr(k.ht,k.prevHT) : null,
+      dir: caHTdir,
+      kc:'#2f81f7',
+      tip:'Chiffre d\'affaires hors taxes : somme des montants HT de toutes les factures postées sur la période. Comparé à la période précédente de même durée.'
+    },
+    {
+      label:'CA TTC',
+      value: fr2(k.ttc)+' €',
+      sub: 'TVA incluse · '+fr2(k.tva)+' € de TVA',
+      pill: hasPrev&&k.prevTTC>0 ? deltaStr(k.ttc,k.prevTTC) : null,
+      pillClass: caTTCdir==='up'?'g':caTTCdir==='down'?'r':'o',
+      delta: hasPrev&&k.prevTTC>0 ? deltaStr(k.ttc,k.prevTTC) : null,
+      dir: caTTCdir,
+      kc:'#388bfd',
+      tip:'Chiffre d\'affaires toutes taxes comprises. Inclut la TVA collectée. Complémentaire au CA HT pour vérifier la cohérence des taux de TVA appliqués.'
+    },
+    {
+      label:'Nb de factures',
+      value: String(k.n),
+      sub: k.nPaid+' payées · '+k.nPartial+' partielles',
+      pill: hasPrev&&k.prevN>0 ? (k.n>k.prevN?'+':'')+String(k.n-k.prevN)+' factures' : null,
+      pillClass: nbDir==='up'?'g':nbDir==='down'?'r':'o',
+      delta: hasPrev&&k.prevN>0 ? deltaStr(k.n,k.prevN) : null,
+      dir: nbDir,
+      kc:'#bc8cff',
+      tip:'Nombre total de factures clients postées sur la période. La comparaison vs période précédente indique si l\'activité commerciale est en hausse ou en baisse en volume.'
+    }
+  ];
+
+  document.getElementById('heroGrid').innerHTML = heroes.map(h=>`
+    <div class="kpi-hero" style="--kc:${h.kc}">
+      <div class="kpi-hero-accent"></div>
+      <div class="kpi-top-row">
+        <div class="kpi-label">${h.label}</div>
+        <div class="kpi-icon-wrap">
+          <div class="info-wrap">
+            <button class="info-btn">ⓘ</button>
+            <div class="info-tip">${h.tip}</div>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-value-big">${h.value}</div>
+      <div class="kpi-sub-row">
+        <span class="kpi-sub">${h.sub}</span>
+        ${h.pill?`<span class="kpi-pct-pill ${h.pillClass}">${h.pill}</span>`:''}
+      </div>
+      ${h.delta?`<div class="kpi-delta-trading ${h.dir}">
+        <span class="tri">${h.dir==='up'?'▲':h.dir==='down'?'▼':'●'}</span>
+        ${h.delta} vs période préc.
+      </div>`:''}
+    </div>`).join('');
+}
+
+// ── RENDER SECONDARY KPIs ─────────────────────────────
+function renderSec(k){
+  const hasPrev = k.prevHT > 0;
+  const panierDir = deltaDir(k.panierHT, k.prevPanierHT);
+  const overdueDir = k.overdue===0?'up':deltaDir(k.overdue,k.prevOverdue)==='up'?'down':deltaDir(k.overdue,k.prevOverdue)==='down'?'up':'flat';
+
+  const items = [
+    {
+      label:'Ticket moyen HT',
+      value: fr2(k.panierHT)+' €',
+      sub: 'par facture',
+      bar: Math.min(pct(k.panierHT,5000),100),
+      delta: hasPrev&&k.prevPanierHT>0 ? deltaStr(k.panierHT,k.prevPanierHT) : null,
+      dir: panierDir,
+      kc:'#e3b341',
+      tip:'Montant moyen HT par facture. Un ticket moyen en hausse indique des prestations plus valorisées ou des groupements de facturation.'
+    },
+    {
+      label:'Retard moyen',
+      value: k.delayMoy>0 ? k.delayMoy+' jours' : 'À jour',
+      sub: k.overdue+' factures en retard',
+      bar: Math.min(k.delayMoy,100),
+      delta: null,
+      dir: k.delayMoy>30?'down':k.delayMoy>0?'flat':'up',
+      kc: k.delayMoy>30?'#f85149':k.delayMoy>0?'#e3b341':'#3fb950',
+      tip:'Délai moyen (en jours) de dépassement des échéances sur les factures impayées. Calculé uniquement sur les factures dont la date d\'échéance est dépassée.'
+    },
+    {
+      label:'Factures en retard',
+      value: String(k.overdue),
+      sub: fr2(k.overdueAmt)+' € impayés',
+      bar: Math.min(pct(k.overdue,k.n),100),
+      delta: hasPrev&&k.prevOverdue>0 ? (k.overdue>k.prevOverdue?'+':'')+String(k.overdue-k.prevOverdue) : null,
+      dir: overdueDir,
+      kc: k.overdue>5?'#f85149':k.overdue>0?'#e3b341':'#3fb950',
+      tip:'Nombre de factures dont la date d\'échéance est dépassée et qui ne sont pas intégralement payées. Le montant indiqué est le cumul des soldes restants.'
+    },
+    {
+      label:'Avoirs émis',
+      value: fr2(k.refTotal)+' €',
+      sub: k.ratioAvoir+'% du CA TTC',
+      bar: Math.min(k.ratioAvoir*5,100),
+      delta: null,
+      dir: k.ratioAvoir>5?'down':k.ratioAvoir>0?'flat':'up',
+      kc:'#f78166',
+      tip:'Total des avoirs (factures d\'annulation ou de remboursement) émis sur la période. Un ratio avoirs/CA élevé peut signaler des retours ou litiges fréquents.'
+    }
+  ];
+
+  document.getElementById('secGrid').innerHTML = items.map(x=>`
+    <div class="kpi-sec" style="--kc:${x.kc};--bar:${x.bar}%">
+      <div class="kpi-sec-bar"></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="kpi-sec-label">${x.label}</div>
+        <div class="info-wrap">
+          <button class="info-btn" style="font-size:.72rem">ⓘ</button>
+          <div class="info-tip">${x.tip}</div>
+        </div>
+      </div>
+      <div class="kpi-sec-value">${x.value}</div>
+      <div class="kpi-sec-sub">${x.sub}</div>
+      ${x.delta?`<div class="kpi-sec-delta ${x.dir}">${x.dir==='up'?'▲':x.dir==='down'?'▼':'●'} ${x.delta}</div>`:''}
+    </div>`).join('');
+}
+
+// ── CHART DEFAULTS ────────────────────────────────────
+Chart.defaults.color='#8b949e';
+Chart.defaults.font.family="Inter,'Segoe UI',sans-serif";
+Chart.defaults.font.size=11;
+
+// ── CHART: CA MENSUEL ────────────────────────────────
+function renderCA(invs){
+  const bm={};
+  invs.forEach(i=>{if(!i.date)return; const m=i.date.slice(0,7); if(!bm[m])bm[m]={ht:0,ttc:0}; bm[m].ht+=i.ht; bm[m].ttc+=i.ttc;});
+  const ms=Object.keys(bm).sort();
+  document.getElementById('b1').textContent=ms.length+' mois';
+  killChart('ca');
+  charts.ca=new Chart(document.getElementById('caChart'),{type:'bar',
+    data:{labels:ms,datasets:[
+      {label:'HT',data:ms.map(m=>Math.round(bm[m].ht)),backgroundColor:'rgba(47,129,247,.65)',borderRadius:4},
+      {label:'TTC',data:ms.map(m=>Math.round(bm[m].ttc)),type:'line',borderColor:'#3fb950',
+        backgroundColor:'rgba(63,185,80,.07)',borderWidth:2,pointRadius:3,fill:true,tension:.4}
+    ]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#8b949e',boxWidth:10}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{maxRotation:45}},
+        y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{callback:v=>fri(v)+'€'}}}}});
+}
+
+// ── CHART: STATUTS ────────────────────────────────────
+function renderStatus(invs){
+  const p=invs.filter(i=>i.status==='paid').length;
+  const u=invs.filter(i=>i.status==='not_paid').length;
+  const pa=invs.filter(i=>i.status==='partial').length;
+  killChart('status');
+  charts.status=new Chart(document.getElementById('statusChart'),{type:'doughnut',
+    data:{labels:['Payées','Non payées','Partielles'],datasets:[{data:[p,u,pa],
+      backgroundColor:['rgba(63,185,80,.8)','rgba(248,81,73,.8)','rgba(227,179,65,.8)'],
+      borderColor:['#3fb950','#f85149','#e3b341'],borderWidth:2,hoverOffset:4}]},
+    options:{responsive:true,cutout:'68%',plugins:{legend:{display:false}}}});
+  document.getElementById('statusLegend').innerHTML=`
+    <div class="stat-row"><span class="stat-label">✅ Payées</span><span class="badge g">${p}</span></div>
+    <div class="stat-row"><span class="stat-label">❌ Non payées</span><span class="badge r">${u}</span></div>
+    <div class="stat-row"><span class="stat-label">🔶 Partielles</span><span class="badge o">${pa}</span></div>`;
+}
+
+// ── CHART: GAUGE ──────────────────────────────────────
+function renderGauge(t){
+  const c=t>=75?'#3fb950':t>=50?'#e3b341':'#f85149';
+  killChart('gauge');
+  charts.gauge=new Chart(document.getElementById('gaugeChart'),{type:'doughnut',
+    data:{datasets:[{data:[t,100-t],backgroundColor:[c,'rgba(255,255,255,.05)'],
+      borderWidth:0,circumference:180,rotation:270}]},
+    options:{responsive:true,cutout:'75%',plugins:{legend:{display:false},tooltip:{enabled:false}}}});
+  const el=document.getElementById('gaugePct'); el.textContent=t+'%'; el.style.color=c;
+}
+
+// ── CHART: CA CUMULÉ ──────────────────────────────────
+function renderCumul(invs){
+  const bm={};
+  invs.forEach(i=>{if(!i.date)return; const m=i.date.slice(0,7); bm[m]=(bm[m]||0)+i.ht;});
+  const ms=Object.keys(bm).sort(); let cum=0;
+  killChart('cumul');
+  charts.cumul=new Chart(document.getElementById('cumulChart'),{type:'line',
+    data:{labels:ms,datasets:[{label:'CA HT cumulé',
+      data:ms.map(m=>{cum+=bm[m];return Math.round(cum);}),
+      borderColor:'#2f81f7',backgroundColor:'rgba(47,129,247,.1)',
+      borderWidth:2.5,pointRadius:3,fill:true,tension:.4}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{maxRotation:45}},
+        y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{callback:v=>fri(v)+'€'}}}}});
+}
+
+// ── CHART: DISTRIBUTION ───────────────────────────────
+function renderDist(invs){
+  const b=[0,0,0,0,0,0];
+  invs.forEach(i=>{if(i.ttc<200)b[0]++; else if(i.ttc<500)b[1]++; else if(i.ttc<1000)b[2]++; else if(i.ttc<2000)b[3]++; else if(i.ttc<5000)b[4]++; else b[5]++;});
+  killChart('dist');
+  charts.dist=new Chart(document.getElementById('distChart'),{type:'bar',
+    data:{labels:['< 200€','200-500€','500-1k€','1k-2k€','2k-5k€','> 5k€'],
+      datasets:[{data:b,backgroundColor:'rgba(188,140,255,.7)',borderRadius:4,label:'Factures'}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'}},
+        y:{grid:{color:'rgba(255,255,255,.03)'}}}}});
+}
+
+// ── CHART: AGING ──────────────────────────────────────
+function renderAging(invs){
+  const b=[0,0,0,0,0]; let tot=0;
+  invs.forEach(i=>{
+    if(i.status==='paid')return;
+    const d=daysOverdue(i.due); if(d<=0)return;
+    tot+=i.residual;
+    if(d<=30)b[0]++; else if(d<=60)b[1]++; else if(d<=90)b[2]++; else if(d<=180)b[3]++; else b[4]++;
+  });
+  killChart('aging');
+  charts.aging=new Chart(document.getElementById('agingChart'),{type:'bar',
+    data:{labels:['< 30j','30-60j','60-90j','90-180j','> 180j'],datasets:[{data:b,
+      backgroundColor:['rgba(63,185,80,.7)','rgba(227,179,65,.7)','rgba(237,137,54,.7)','rgba(248,81,73,.7)','rgba(160,30,30,.7)'],
+      borderRadius:4,label:'Factures'}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'}},
+        y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{stepSize:1}}}}});
+  document.getElementById('agingStats').innerHTML=`
+    <div class="stat-row"><span class="stat-label">Total en retard</span><span class="stat-value" style="color:#f85149">${fr2(tot)} €</span></div>
+    <div class="stat-row"><span class="stat-label">Nb factures</span><span class="stat-value">${b.reduce((a,c)=>a+c,0)}</span></div>`;
+}
+
+// ── CHART: AVOIRS ─────────────────────────────────────
+function renderRefunds(refs){
+  const bm={};
+  refs.forEach(r=>{if(!r.date)return; const m=r.date.slice(0,7); bm[m]=(bm[m]||0)+r.ttc;});
+  const ms=Object.keys(bm).sort();
+  killChart('refund');
+  charts.refund=new Chart(document.getElementById('refundChart'),{type:'bar',
+    data:{labels:ms,datasets:[{data:ms.map(m=>Math.round(bm[m])),
+      backgroundColor:'rgba(248,81,73,.65)',borderRadius:4,label:'Avoirs (€)'}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'}},
+        y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{callback:v=>fri(v)+'€'}}}}});
+  const tot=refs.reduce((s,r)=>s+r.ttc,0);
+  document.getElementById('refundStats').innerHTML=`
+    <div class="stat-row"><span class="stat-label">Total avoirs</span><span class="stat-value" style="color:#f85149">${fr2(tot)} €</span></div>
+    <div class="stat-row"><span class="stat-label">Nb avoirs</span><span class="stat-value">${refs.length}</span></div>`;
+}
+
+// ── CHART: CLIENTS ────────────────────────────────────
+function renderClients(invs){
+  const ca={},pa={};
+  invs.forEach(i=>{ca[i.partner]=(ca[i.partner]||0)+i.ttc; pa[i.partner]=(pa[i.partner]||0)+(i.ttc-i.residual);});
+  const top=Object.entries(ca).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  document.getElementById('b2').textContent='Top '+top.length;
+  killChart('client');
+  charts.client=new Chart(document.getElementById('clientChart'),{type:'bar',
+    data:{labels:top.map(c=>c[0].substring(0,20)),datasets:[
+      {label:'Encaissé',data:top.map(c=>Math.round(pa[c[0]]||0)),backgroundColor:'rgba(63,185,80,.7)',borderRadius:3},
+      {label:'Reste dû',data:top.map(c=>Math.round(c[1]-(pa[c[0]]||0))),backgroundColor:'rgba(248,81,73,.7)',borderRadius:3}
+    ]},
+    options:{indexAxis:'y',responsive:true,
+      plugins:{legend:{labels:{color:'#8b949e',boxWidth:10}}},
+      scales:{x:{stacked:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{callback:v=>fri(v)+'€'}},
+        y:{stacked:true,grid:{color:'rgba(255,255,255,.03)'},ticks:{font:{size:10}}}}}});
+}
+
+// ── RANK LIST ─────────────────────────────────────────
+function renderRank(invs){
+  const ca={},pa={};
+  invs.forEach(i=>{ca[i.partner]=(ca[i.partner]||0)+i.ttc; pa[i.partner]=(pa[i.partner]||0)+(i.ttc-i.residual);});
+  const s=Object.entries(ca).sort((a,b)=>b[1]-a[1]).slice(0,10); const mx=s[0]?.[1]||1;
+  const col=['#f7c948','#c0c0c0','#cd7f32','#79c0ff','#79c0ff','#79c0ff','#79c0ff','#79c0ff','#79c0ff','#79c0ff'];
+  document.getElementById('b3').textContent='Top '+s.length;
+  document.getElementById('rankList').innerHTML=s.map(([n,t],i)=>{
+    const r=pct(pa[n]||0,t); const pc=r>=80?'g':r>=50?'o':'r';
+    return `<div class="rank-item">
+      <div class="rank-num" style="background:${col[i]};color:#0d1117">${i+1}</div>
+      <div class="rank-name">${n}</div>
+      <div class="rank-bar-wrap"><div class="prog"><div class="prog-fill" style="width:${pct(t,mx)}%;background:${col[i]}"></div></div></div>
+      <div class="rank-val" style="color:${col[i]}">${fr2(t)} €</div>
+      <span class="badge ${pc}">${r}%</span>
+    </div>`;
+  }).join('');
+}
+
+// ── CHART: COMPARAISON ANNUELLE ───────────────────────
+function renderYearCompare(){
+  const months=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const years=[2024,2025,2026];
+  const colors=['rgba(47,129,247,.75)','rgba(63,185,80,.75)','rgba(188,140,255,.75)'];
+
+  const data={};
+  years.forEach(y=>{data[y]=Array(12).fill(0);});
+  RAW_INVS.forEach(i=>{
+    if(!i.date)return;
+    const y=parseInt(i.date.slice(0,4)); const m=parseInt(i.date.slice(5,7))-1;
+    if(data[y]!==undefined) data[y][m]+=i.ht;
+  });
+
+  killChart('year');
+  charts.year=new Chart(document.getElementById('yearChart'),{type:'bar',
+    data:{labels:months,datasets:years.map((y,idx)=>({
+      label:String(y),
+      data:data[y].map(v=>Math.round(v)),
+      backgroundColor:colors[idx],
+      borderRadius:3
+    }))},
+    options:{responsive:true,
+      plugins:{legend:{labels:{color:'#8b949e',boxWidth:10}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,.03)'}},
+        y:{grid:{color:'rgba(255,255,255,.03)'},ticks:{callback:v=>fri(v)+'€'}}}}});
+}
+
+// ── BANDEAU MISE À JOUR ───────────────────────────────
+function renderUpdateBanner(){
+  const pill=document.getElementById('updateDiode');
+  const text=document.getElementById('updateText');
+  const warn=document.getElementById('updateWarning');
+  text.textContent = LAST_UPDATE_FR || '—';
+  warn.textContent = '';
+  pill.className = 'status-pill';
+  if(!LAST_UPDATE_ISO){
+    pill.className='status-pill red';
+    warn.textContent=' · ⚠️ aucune mise à jour';
+    return;
+  }
+  const updated=new Date(LAST_UPDATE_ISO);
+  const hours=(Date.now()-updated.getTime())/3600000;
+  if(hours < THRESHOLDS.diode_orange_hours){
+    pill.className='status-pill';
+  } else if(hours < THRESHOLDS.diode_red_hours){
+    pill.className='status-pill orange';
+    warn.textContent=' · ⏳ '+Math.round(hours)+'h';
+  } else {
+    pill.className='status-pill red';
+    warn.textContent=' · ⚠️ '+Math.round(hours/24)+'j sans refresh';
+  }
+}
+
+// ── SOLDE BANCAIRE ────────────────────────────────────
+function renderBank(){
+  const card=document.getElementById('bankCard');
+  const el=document.getElementById('bankAmount');
+  const sub=document.getElementById('bankSub');
+  const list=document.getElementById('bankAccounts');
+  const state=document.getElementById('bankState');
+  if(!BANK_DATA || BANK_DATA.error || BANK_DATA.total===null || BANK_DATA.total===undefined){
+    el.textContent='—';
+    sub.textContent = BANK_DATA && BANK_DATA.error ? 'Synchro Odoo indisponible' : 'Donnée non disponible';
+    list.innerHTML='';
+    card.setAttribute('data-state','warn');
+    state.className='bank-state warn'; state.textContent='Indisponible';
+    return;
+  }
+  const tot=BANK_DATA.total;
+  const negative = tot < 0;
+  el.innerHTML = fr2(tot) + ' <span class="cur">€</span>';
+  el.className='bank-amount'+(negative?' neg':'');
+  card.setAttribute('data-state', negative?'negative':'ok');
+  if(negative){
+    state.className='bank-state bad';
+    state.textContent = '⚠ Découvert '+fri(Math.abs(tot))+' €';
+  } else if(tot < 5000){
+    state.className='bank-state warn';
+    state.textContent = 'Trésorerie tendue';
+  } else {
+    state.className='bank-state ok';
+    state.textContent = 'Trésorerie OK';
+  }
+  const nb=(BANK_DATA.accounts||[]).length;
+  sub.textContent = nb + ' compte' + (nb>1?'s':'') + ' bancaire' + (nb>1?'s':'') + ' synchronisé' + (nb>1?'s':'');
+  list.innerHTML = (BANK_DATA.accounts||[]).map(a=>{
+    const b = (a.balance!==null && a.balance!==undefined) ? a.balance : null;
+    const balCls = b===null ? '' : (b<0 ? ' neg' : (b===0 ? ' zero' : ''));
+    const balTxt = b!==null ? fr2(b)+' €' : '—';
+    // Shorten IBAN-looking names to last 4
+    let nm = a.name||'';
+    if(nm.length>22 && /^[A-Z]{2}\d/.test(nm)) nm = nm.slice(0,4)+'…'+nm.slice(-4);
+    const dat = a.last_date ? '<span style="color:var(--muted-strong);margin-left:6px;font-size:.66rem">'+a.last_date+'</span>' : '';
+    return `<div class="bank-row"><span class="acc"><span class="acc-name">${nm}</span>${dat}</span><span class="val${balCls}">${balTxt}</span></div>`;
+  }).join('');
+}
+
+// ── COMPTEURS APPELS — 3 VARIANTES ───────────────────
+const GAUGE_STYLE = () => (window.__tweaks?.gaugeStyle || 'classic');
+
+function renderAppelGauge(key, bodyId, todayId, week7Id, lastId, pillId, cardId){
+  const k = APPELS_KPIS[key] || {count_today:0, count_7d:0, hours_since_last:null, color:'red', total:0};
+  const style = GAUGE_STYLE();
+  const c = k.color || 'red';
+  document.getElementById(cardId).setAttribute('data-state', c);
+  const pill = document.getElementById(pillId);
+  pill.className = 'appel-state-pill ' + c;
+  pill.textContent = c==='green' ? 'À jour' : c==='orange' ? 'À surveiller' : 'En attente';
+
+  document.getElementById(todayId).textContent = k.count_today || 0;
+  document.getElementById(week7Id).textContent = k.count_7d || 0;
+  let last;
+  if(k.hours_since_last===null || k.hours_since_last===undefined){
+    last = '—';
+  } else if(k.hours_since_last < 1){
+    last = '<1h';
+  } else if(k.hours_since_last < 24){
+    last = Math.round(k.hours_since_last)+'h';
+  } else {
+    last = Math.round(k.hours_since_last/24)+'j';
+  }
+  document.getElementById(lastId).textContent = last;
+
+  const body = document.getElementById(bodyId);
+  if(style === 'classic'){
+    body.innerHTML = gaugeClassic(k, c);
+    // Animate needle after insertion
+    requestAnimationFrame(()=>{
+      const n = body.querySelector('.gauge-needle');
+      if(n) n.style.transform = `rotate(${needleAngle(k,c)}deg)`;
+    });
+  } else if(style === 'radial'){
+    body.innerHTML = gaugeRadial(k, c);
+    requestAnimationFrame(()=>{
+      const f = body.querySelector('.radial-fill');
+      if(f){ const v = ringValue(k,c); const C = 2*Math.PI*62; f.setAttribute('stroke-dasharray', (C*v)+' '+C);}
+    });
+  } else {
+    body.innerHTML = gaugeBar(k, c);
+    requestAnimationFrame(()=>{
+      const f = body.querySelector('.bar-gauge-fill');
+      if(f){ f.style.width = barValue(k,c)+'%'; }
+    });
+  }
+}
+
+function needleAngle(k, c){
+  if(c==='green') return Math.min(75, -20 + Math.min(k.count_today||1, 6)*16);
+  if(c==='orange') return 0;
+  return -68;
+}
+function ringValue(k, c){
+  if(c==='green') return Math.min(1, 0.4 + (k.count_today||0)*0.15);
+  if(c==='orange') return 0.55;
+  return 0.15;
+}
+function barValue(k, c){
+  if(c==='green') return Math.min(92, 70 + (k.count_today||1)*5);
+  if(c==='orange') return 46;
+  return 12;
+}
+
+function gaugeClassic(k, c){
+  // SVG arc 210x130, center at 105,105, radius 78
+  // Half-circle from 180° to 0° (left to right)
+  // Ticks every 22.5°
+  const ticks = [];
+  for(let i=0;i<=8;i++){
+    const ang = Math.PI - (i/8)*Math.PI;
+    const r1 = 78, r2 = i%2===0 ? 64 : 70;
+    const x1 = 105 + Math.cos(ang)*r1;
+    const y1 = 105 - Math.sin(ang)*r1;
+    const x2 = 105 + Math.cos(ang)*r2;
+    const y2 = 105 - Math.sin(ang)*r2;
+    ticks.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="gauge-tick${i%2===0?' gauge-tick-major':''}"/>`);
+  }
+  // Initial needle position: straight up (transformed at runtime)
+  return `
+    <svg class="gauge-svg" viewBox="0 0 210 130">
+      <path class="gauge-bg-arc" d="M 27 105 A 78 78 0 0 1 183 105"/>
+      <path class="gauge-zone red"    d="M 27 105 A 78 78 0 0 1 73 39"/>
+      <path class="gauge-zone orange" d="M 73 39  A 78 78 0 0 1 137 39"/>
+      <path class="gauge-zone green"  d="M 137 39 A 78 78 0 0 1 183 105"/>
+      ${ticks.join('')}
+      <line class="gauge-needle" x1="105" y1="105" x2="105" y2="38" style="transform:rotate(-90deg)"/>
+      <circle class="gauge-pivot" cx="105" cy="105" r="7"/>
+      <circle class="gauge-pivot-inner" cx="105" cy="105" r="2.5"/>
+    </svg>
+    <div class="gauge-value ${c}">${k.count_today||0}</div>
+    <div class="gauge-caption">appel${(k.count_today||0)>1?'s':''} aujourd'hui</div>`;
+}
+
+function gaugeRadial(k, c){
+  const C = 2*Math.PI*62;
+  return `
+    <div class="radial-wrap">
+      <svg class="radial-svg" viewBox="0 0 160 160">
+        <circle class="radial-track" cx="80" cy="80" r="62"/>
+        <circle class="radial-fill ${c}" cx="80" cy="80" r="62"
+          stroke-dasharray="0 ${C}"/>
+      </svg>
+      <div class="radial-center">
+        <div class="v ${c}">${k.count_today||0}</div>
+        <div class="l">appel${(k.count_today||0)>1?'s':''} · auj.</div>
+      </div>
+    </div>`;
+}
+
+function gaugeBar(k, c){
+  const zeroCls = (k.count_today||0)===0 ? ' is-zero' : '';
+  return `
+    <div class="bar-gauge-value ${c}">${k.count_today||0}</div>
+    <div style="font-size:.7rem;color:var(--muted);text-align:center;margin-bottom:4px">
+      appel${(k.count_today||0)>1?'s':''} aujourd'hui
+    </div>
+    <div class="bar-gauge">
+      <div class="bar-gauge-track">
+        <div class="bar-gauge-fill${zeroCls}" style="width:0%"></div>
+      </div>
+      <div class="bar-gauge-marks">
+        <span>silence</span><span>peu</span><span>actif</span>
+      </div>
+    </div>`;
+}
+
+// ── IMPAYÉS CLIENTS ───────────────────────────────────
+function renderImpayes(){
+  const tbody = document.getElementById('impayesTbody');
+  const badge = document.getElementById('impayesBadge');
+  const meta = document.getElementById('impayesMeta');
+  const topWrap = document.getElementById('impayesTop');
+  const data = IMPAYES_CLIENTS || [];
+  badge.textContent = data.length + ' client' + (data.length>1?'s':'');
+  if(data.length===0){
+    topWrap.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="5" class="imp-empty">✅ Aucun impayé — tout est encaissé</td></tr>';
+    meta.textContent = 'Aucun impayé';
+    return;
+  }
+  const totalDu = data.reduce((s,c)=>s+(c.total_du||0),0);
+  meta.textContent = fr2(totalDu)+' € en jeu · '+data.length+' clients';
+
+  // Top 3 urgents — affichage si tweak "show"
+  const showUrgent = (window.__tweaks?.urgent || 'show') === 'show';
+  if(showUrgent && data.length){
+    const top = data.slice(0,3);
+    const max = Math.max(...top.map(c=>c.total_du||0), 1);
+    const sevColor = {critical:'#a01e1e', red:'#f85149', orange:'#e3b341', green:'#3fb950'};
+    topWrap.innerHTML = top.map((c, i)=>{
+      const sev = c.severity || 'green';
+      const days = c.oldest_days || 0;
+      const sevLbl = sev==='critical' ? 'CRITIQUE' : sev==='red' ? 'URGENT' : sev==='orange' ? 'À RELANCER' : 'EN COURS';
+      const bar = Math.round((c.total_du/max)*100);
+      return `<div class="urgent-card rise d${i+1}" data-sev="${sev}" style="--uc:${sevColor[sev]}">
+        <div class="urgent-head">
+          <div class="urgent-name">${escapeHtml(c.partner||'—')}</div>
+          <div class="urgent-sev-badge ${sev}">${sevLbl}</div>
+        </div>
+        <div class="urgent-amount">${fr2(c.total_du||0)} €</div>
+        <div class="urgent-meta">
+          <span><b>${c.nb_factures||0}</b> facture${(c.nb_factures||0)>1?'s':''}</span>
+          <span>plus vieille : <b>${days}j</b></span>
+        </div>
+        <div class="urgent-bar"><div class="urgent-bar-fill" style="width:${bar}%"></div></div>
+      </div>`;
+    }).join('');
+  } else {
+    topWrap.innerHTML = '';
+  }
+
+  // Tableau complet (tous, max 50)
+  tbody.innerHTML = data.slice(0,50).map(c=>{
+    const sev = c.severity || 'green';
+    const totalFmt = fr2(c.total_du) + ' €';
+    const days = c.oldest_days;
+    const daysTxt = days>0 ? `il y a ${days}j` : 'pas encore échu';
+    return `<tr>
+      <td><span class="imp-sev ${sev}"></span></td>
+      <td>${escapeHtml(c.partner||'—')}</td>
+      <td class="amount">${totalFmt}</td>
+      <td style="text-align:right">${c.nb_factures||0}</td>
+      <td style="text-align:right"><span class="imp-days">${daysTxt}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function escapeAttr(s){return String(s).replace(/"/g, '&quot;');}
+
+// ── TWEAKS PANEL ─────────────────────────────────────
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "gaugeStyle": "classic",
+  "density": "comfort",
+  "palette": "blue",
+  "urgent": "show"
+}/*EDITMODE-END*/;
+
+window.__tweaks = JSON.parse(JSON.stringify(TWEAK_DEFAULTS));
+
+const PALETTES = {
+  blue:  {accent:'#2f81f7', accent2:'#388bfd', soft:'rgba(47,129,247,.12)', line:'rgba(47,129,247,.35)'},
+  amber: {accent:'#f7b955', accent2:'#e09333', soft:'rgba(247,185,85,.13)', line:'rgba(247,185,85,.35)'},
+  cyber: {accent:'#56d4dd', accent2:'#39c0c8', soft:'rgba(86,212,221,.13)', line:'rgba(86,212,221,.35)'}
+};
+
+function applyTweaks(t){
+  document.documentElement.setAttribute('data-density', t.density);
+  const p = PALETTES[t.palette] || PALETTES.blue;
+  document.documentElement.style.setProperty('--accent', p.accent);
+  document.documentElement.style.setProperty('--accent-2', p.accent2);
+  document.documentElement.style.setProperty('--accent-soft', p.soft);
+  document.documentElement.style.setProperty('--accent-line', p.line);
+  // Re-render parts that depend on tweaks
+  renderAppelGauge('portails','bodyPortails','todayPortails','week7Portails','lastPortails','statePillPortails','pulsePortails');
+  renderAppelGauge('fibre','bodyFibre','todayFibre','week7Fibre','lastFibre','statePillFibre','pulseFibre');
+  renderImpayes();
+  // Update active states in panel
+  document.querySelectorAll('.tweaks-panel [data-tweak]').forEach(grp=>{
+    const key = grp.getAttribute('data-tweak');
+    grp.querySelectorAll('[data-v]').forEach(el=>{
+      el.classList.toggle('active', el.getAttribute('data-v') === t[key]);
+    });
+  });
+}
+
+function setTweak(key, value){
+  window.__tweaks[key] = value;
+  applyTweaks(window.__tweaks);
+}
+
+// Panel open/close
+document.getElementById('tweaksToggle').addEventListener('click', ()=>{
+  document.getElementById('tweaksPanel').classList.toggle('open');
+});
+document.getElementById('tweaksClose').addEventListener('click', ()=>{
+  document.getElementById('tweaksPanel').classList.remove('open');
+});
+// Bind tweak controls
+document.querySelectorAll('.tweaks-panel [data-tweak]').forEach(grp=>{
+  const key = grp.getAttribute('data-tweak');
+  grp.querySelectorAll('[data-v]').forEach(el=>{
+    el.addEventListener('click', ()=>setTweak(key, el.getAttribute('data-v')));
+  });
+});
+
+// ── RENDER ALL ────────────────────────────────────────
+function renderAll(){
+  renderUpdateBanner();
+  renderBank();
+  renderAppelGauge('portails','bodyPortails','todayPortails','week7Portails','lastPortails','statePillPortails','pulsePortails');
+  renderAppelGauge('fibre','bodyFibre','todayFibre','week7Fibre','lastFibre','statePillFibre','pulseFibre');
+  renderImpayes();
+
+  const invs=filtered(), prev=filteredPrev(), refs=filteredRefs();
+  const k=computeAll(invs,prev,refs);
+  renderHero(k);
+  renderSec(k);
+  renderCA(invs);
+  renderStatus(invs);
+  renderGauge(k.tauxEnc);
+  renderCumul(invs);
+  renderDist(invs);
+  renderAging(invs);
+  renderRefunds(refs);
+  renderClients(invs);
+  renderRank(invs);
+  renderYearCompare();
+}
+
+// ── INIT ──────────────────────────────────────────────
+const now=new Date();
+const ds2=now.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})
+  +' à '+now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+document.getElementById('genDate').textContent=ds2;
+document.getElementById('footerDate').textContent=ds2;
+document.querySelectorAll('.preset-btn').forEach(b=>b.addEventListener('click',()=>setPreset(b.dataset.p)));
+applyTweaks(window.__tweaks);
+// Mode screenshot : coupe les animations si URL contient ?screenshot=1
+if(new URLSearchParams(location.search).get('screenshot')==='1'){
+  document.body.classList.add('screenshot-mode');
+}
+renderAll();
+
+// ── TOOLTIP CLICK ─────────────────────────────────────
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('.info-btn');
+  if(btn){
+    e.stopPropagation();
+    const tip=btn.closest('.info-wrap').querySelector('.info-tip');
+    const wasOpen=tip.classList.contains('open');
+    document.querySelectorAll('.info-tip.open').forEach(t=>t.classList.remove('open'));
+    if(!wasOpen) tip.classList.add('open');
+    return;
+  }
+  document.querySelectorAll('.info-tip.open').forEach(t=>t.classList.remove('open'));
+});
+</script>
+</body>
+</html>
