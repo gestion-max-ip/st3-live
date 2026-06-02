@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carte Chantiers ST3 Télécoms</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { display: flex; height: 100vh; background: #0d1117; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: 320px; min-width: 280px; max-width: 320px;
+  background: #161b22; border-right: 1px solid #30363d;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#sidebar-header {
+  padding: 14px 16px; border-bottom: 1px solid #30363d; background: #0d1117; flex-shrink: 0;
+}
+#sidebar-header h1 { font-size: 15px; font-weight: 600; color: #2f81f7; margin-bottom: 2px; }
+#sidebar-header .subtitle { font-size: 11px; color: #8b949e; }
+
+#filters {
+  padding: 10px 12px; border-bottom: 1px solid #30363d;
+  display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+}
+.filter-label { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.filter-group select,
+.filter-group input[type="text"] {
+  width: 100%; background: #0d1117; border: 1px solid #30363d;
+  color: #e6edf3; padding: 5px 8px; border-radius: 5px; font-size: 12px;
+}
+.filter-group select:focus, .filter-group input[type="text"]:focus {
+  outline: none; border-color: #2f81f7;
+}
+.filter-group input[type="range"] { width: 100%; accent-color: #2f81f7; }
+.range-row { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; }
+
+/* ── STATS ── */
+#stats {
+  padding: 10px 12px; border-bottom: 1px solid #30363d;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex-shrink: 0;
+}
+.stat-card {
+  background: #0d1117; border-radius: 5px; padding: 7px 10px; border: 1px solid #30363d;
+}
+.stat-card .value { font-size: 17px; font-weight: 700; color: #2f81f7; }
+.stat-card .label { font-size: 10px; color: #8b949e; }
+
+/* ── LEGENDE ── */
+#legende {
+  padding: 8px 12px; border-bottom: 1px solid #30363d; flex-shrink: 0;
+}
+#legende h3 { font-size: 10px; color: #8b949e; text-transform: uppercase; margin-bottom: 5px; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-bottom: 2px; color: #c9d1d9; }
+.leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── LISTE ── */
+#chantiers-list { flex: 1; overflow-y: auto; padding: 6px; }
+#chantiers-list::-webkit-scrollbar { width: 4px; }
+#chantiers-list::-webkit-scrollbar-track { background: transparent; }
+#chantiers-list::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+
+.chantier-item {
+  background: #0d1117; border: 1px solid #30363d; border-radius: 5px;
+  padding: 7px 9px; margin-bottom: 5px; cursor: pointer; transition: border-color 0.15s;
+}
+.chantier-item:hover { border-color: #2f81f7; background: #111827; }
+.chantier-item .nom { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chantier-item .meta { font-size: 10px; color: #8b949e; margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+.badge {
+  display: inline-block; padding: 1px 5px; border-radius: 8px; font-size: 10px; font-weight: 500;
+}
+.badge-commande { background: #0d4429; color: #3fb950; }
+.badge-devis { background: #1c2c3b; color: #58a6ff; }
+.badge-annulé { background: #2d1117; color: #f85149; }
+.badge-inconnu { background: #21262d; color: #8b949e; }
+
+/* ── MAP ── */
+#map { flex: 1; }
+
+/* ── POPUP ── */
+.leaflet-popup-content-wrapper {
+  background: #161b22 !important; color: #e6edf3 !important;
+  border: 1px solid #30363d !important; border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important; padding: 0 !important;
+}
+.leaflet-popup-content { margin: 0 !important; }
+.leaflet-popup-tip { background: #161b22 !important; }
+.popup-inner { padding: 12px 14px; min-width: 220px; max-width: 280px; }
+.popup-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #e6edf3; }
+.popup-row { display: flex; gap: 6px; font-size: 11px; margin-bottom: 3px; line-height: 1.4; }
+.popup-key { color: #8b949e; min-width: 62px; flex-shrink: 0; }
+.popup-val { color: #c9d1d9; }
+.popup-link {
+  display: block; margin-top: 8px; color: #2f81f7; text-decoration: none;
+  font-size: 11px; border-top: 1px solid #30363d; padding-top: 6px;
+}
+.popup-link:hover { text-decoration: underline; }
+
+/* Legende flottante sur la carte */
+#map-legend {
+  position: absolute;
+  bottom: 30px;
+  right: 10px;
+  z-index: 1000;
+  background: rgba(22, 27, 34, 0.95);
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  min-width: 190px;
+  backdrop-filter: blur(4px);
+}
+#map-legend h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+.mleg-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #e6edf3;
+  margin-bottom: 7px;
+  font-weight: 500;
+}
+.mleg-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.3);
+  box-shadow: 0 0 6px rgba(0,0,0,0.4);
+}
+.mleg-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: #8b949e;
+  font-weight: 400;
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>Chantiers ST3 Télécoms</h1>
+    <div class="subtitle" id="date-label">Généré le 02/06/2026 à 10:11 — 124 chantiers placés</div>
+  </div>
+
+  <div id="filters">
+    <div class="filter-group">
+      <div class="filter-label">Recherche</div>
+      <input type="text" id="search" placeholder="Client, ville, n° devis...">
+    </div>
+    <div class="filter-group">
+      <div class="filter-label">Type document</div>
+      <select id="filter-type">
+        <option value="">Tous</option>
+        <option value="commande">Commande</option>
+        <option value="devis">Devis</option>
+        <option value="annulé">Annulé</option>
+        <option value="inconnu">Inconnu</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <div class="filter-label">Agenda</div>
+      <select id="filter-agenda">
+        <option value="">Tous</option>
+        <option value="equipest3">Ouvrier</option>
+        <option value="telecoms">Directeurs</option>
+        <option value="gestion">Calendly / RDV</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <div class="filter-label">Période</div>
+      <select id="filter-periode">
+        <option value="">Toutes</option>
+        <option value="past30">30 derniers jours</option>
+        <option value="past90">90 derniers jours</option>
+        <option value="future30">30 prochains jours</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <div class="filter-label">Montant max : <span id="montant-label">Tous</span></div>
+      <input type="range" id="filter-montant" min="0" max="15000" step="100" value="15000">
+      <div class="range-row"><span>0 €</span><span>15 000 €+</span></div>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="stat-card">
+      <div class="value" id="stat-nb">—</div>
+      <div class="label">chantiers</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-total">—</div>
+      <div class="label">montant total</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-villes">—</div>
+      <div class="label">villes</div>
+    </div>
+    <div class="stat-card">
+      <div class="value" id="stat-moy">—</div>
+      <div class="label">/ ville (moy.)</div>
+    </div>
+  </div>
+
+  <div id="legende">
+    <h3>Légende agenda</h3>
+    <div class="leg-item"><div class="leg-dot" style="background:#e53e3e"></div>Directeurs (st3telecoms)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ed8936"></div>Ouvrier (équipest3)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ed64a6"></div>RDV / Calendly</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#f6c90e"></div>Détection</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#718096"></div>Non identifié</div>
+  </div>
+
+  <div id="chantiers-list"></div>
+</div>
+
+<div style="position:relative;flex:1"><div id="map" style="width:100%;height:100%"></div>
+<div id="map-legend">
+  <h3>Agenda</h3>
+  <div class="mleg-item">
+    <div class="mleg-dot" style="background:#e53e3e"></div>
+    Directeurs
+    <span class="mleg-count">19</span>
+  </div>
+  <div class="mleg-item">
+    <div class="mleg-dot" style="background:#ed8936"></div>
+    Ouvrier
+    <span class="mleg-count">100</span>
+  </div>
+  <div class="mleg-item">
+    <div class="mleg-dot" style="background:#ed64a6"></div>
+    RDV / Calendly
+    <span class="mleg-count">4</span>
+  </div>
+  <div class="mleg-item">
+    <div class="mleg-dot" style="background:#f6c90e"></div>
+    Détection
+    <span class="mleg-count">1</span>
+  </div>
+  <div class="mleg-item">
+    <div class="mleg-dot" style="background:#718096"></div>
+    Non identifié
+    <span class="mleg-count">—</span>
+  </div>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const ALL = [{"nom": "Mr DEMONGÉ", "titre_calendrier": "Cabriere 30", "devis": "S00544", "order_id": 544, "doc_type": "annulé", "doc_etat": "cancel", "montant": 1276.0, "date": "2026-02-20", "calendar": "equipest3@gmail.com", "adresse": "63 Chemin des Fournaques 30210 Cabrières", "phone": "", "lat": 43.906148, "lon": 4.470288, "geo_score": 0.77, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Anne GRICE", "titre_calendrier": "Maussanne (13) detection", "devis": "S00546", "order_id": 546, "doc_type": "devis", "doc_etat": "draft", "montant": 717.2, "date": "2026-02-20", "calendar": "equipest3@gmail.com", "adresse": "8 Rue Saint-Roch 13520 Maussane-les-Alpilles", "phone": "", "lat": 43.721014, "lon": 4.807459, "geo_score": 0.95, "section": "certain", "color": "#f6c90e"}, {"nom": "Mme Steck", "titre_calendrier": "Chantal Steck et Gestion ST3 telecoms", "devis": "S00557", "order_id": 557, "doc_type": "devis", "doc_etat": "draft", "montant": 1857.68, "date": "2026-02-20", "calendar": "st3gestion@gmail.com", "adresse": "Colombières-sur-Orb", "phone": "", "lat": 43.579101, "lon": 3.013353, "geo_score": 0.93, "section": "certain", "color": "#ed64a6"}, {"nom": "Mme Christiaens", "titre_calendrier": "Collias", "devis": "S00513", "order_id": 513, "doc_type": "commande", "doc_etat": "sale", "montant": 702.9, "date": "2026-02-23", "calendar": "equipest3@gmail.com", "adresse": "3 Rue des Hauts de Collias 30210 Collias", "phone": "", "lat": 43.959229, "lon": 4.474043, "geo_score": 0.95, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Steck", "titre_calendrier": "Chantal Steck et Gestion ST3 telecoms", "devis": "S00557", "order_id": 557, "doc_type": "devis", "doc_etat": "draft", "montant": 1857.68, "date": "2026-02-23", "calendar": "st3gestion@gmail.com", "adresse": "Colombières-sur-Orb", "phone": "", "lat": 43.579101, "lon": 3.013353, "geo_score": 0.93, "section": "certain", "color": "#ed64a6"}, {"nom": "Mme Gout", "titre_calendrier": "Carcassone", "devis": "S00550", "order_id": 550, "doc_type": "devis", "doc_etat": "draft", "montant": 4303.86, "date": "2026-02-24", "calendar": "equipest3@gmail.com", "adresse": "31 Rue Thomas Bouges 11000 Carcassonne", "phone": "", "lat": 43.17481, "lon": 2.419774, "geo_score": 0.97, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Steck", "titre_calendrier": "Chantal Steck et Gestion ST3 telecoms", "devis": "S00557", "order_id": 557, "doc_type": "devis", "doc_etat": "draft", "montant": 1857.68, "date": "2026-02-24", "calendar": "equipest3@gmail.com", "adresse": "Colombières-sur-Orb", "phone": "", "lat": 43.579101, "lon": 3.013353, "geo_score": 0.93, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Fabre", "titre_calendrier": "Rognac", "devis": "S00558", "order_id": 558, "doc_type": "commande", "doc_etat": "sale", "montant": 1323.08, "date": "2026-02-25", "calendar": "equipest3@gmail.com", "adresse": "7 Impasse de Poligny 1 13340 Rognac", "phone": "", "lat": 43.491365, "lon": 5.228821, "geo_score": 0.73, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Splesnick", "titre_calendrier": "Lorgues", "devis": "S00559", "order_id": 559, "doc_type": "devis", "doc_etat": "draft", "montant": 3990.79, "date": "2026-02-25", "calendar": "equipest3@gmail.com", "adresse": "Chemin de la Casserine Sud 83510 Lorgues", "phone": "", "lat": 43.501225, "lon": 6.365943, "geo_score": 0.57, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Robert Crespo", "titre_calendrier": "Marseille", "devis": "S00583", "order_id": 583, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-02-25", "calendar": "equipest3@gmail.com", "adresse": "21 Rue de la coquette 13012 Marseille", "phone": "", "lat": 43.317463, "lon": 5.450874, "geo_score": 0.97, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Licari", "titre_calendrier": "Chritophe Mme licari", "devis": "S00517", "order_id": 517, "doc_type": "commande", "doc_etat": "sale", "montant": 1846.9, "date": "2026-02-26", "calendar": "st3telecoms@gmail.com", "adresse": "14 Lotissement les Iris 84800 L'Isle-sur-la-Sorgue", "phone": "", "lat": 43.913178, "lon": 5.056687, "geo_score": 0.72, "section": "certain", "color": "#e53e3e"}, {"nom": "Mme Chevalier", "titre_calendrier": "Cuers 83", "devis": "S00527", "order_id": 527, "doc_type": "commande", "doc_etat": "sale", "montant": 487.3, "date": "2026-02-27", "calendar": "equipest3@gmail.com", "adresse": "92 Allée des Grives 83390 Cuers", "phone": "", "lat": 43.24504, "lon": 6.072557, "geo_score": 0.76, "section": "certain", "color": "#ed8936"}, {"nom": "M Madeira", "titre_calendrier": "Le Muy", "devis": "S00526", "order_id": 526, "doc_type": "devis", "doc_etat": "draft", "montant": 418.0, "date": "2026-02-27", "calendar": "equipest3@gmail.com", "adresse": "897 Boulevard des Ferrières 83490 Le Muy", "phone": "", "lat": 43.475161, "lon": 6.550583, "geo_score": 0.69, "section": "certain", "color": "#ed8936"}, {"nom": "M Poznansky", "titre_calendrier": "Ollioul", "devis": "S00553", "order_id": 553, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-02-27", "calendar": "equipest3@gmail.com", "adresse": "Allée des Cerisiers 83190 Ollioules", "phone": "", "lat": 43.13744, "lon": 5.858949, "geo_score": 0.72, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Le Forestier", "titre_calendrier": "Saint Raphael", "devis": "S00561", "order_id": 561, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-02-27", "calendar": "equipest3@gmail.com", "adresse": "795 Avenue de Flore 83530 Saint-Raphaël", "phone": "", "lat": 43.430582, "lon": 6.878946, "geo_score": 0.64, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Lopes", "titre_calendrier": "Lunel", "devis": "S00457", "order_id": 457, "doc_type": "commande", "doc_etat": "sale", "montant": 561.0, "date": "2026-03-03", "calendar": "equipest3@gmail.com", "adresse": "189 Rue de l’Artisanat 34400 Lunel", "phone": "", "lat": 43.678949, "lon": 4.118301, "geo_score": 0.97, "section": "certain", "color": "#ed8936"}, {"nom": "Les Jardins de Beaumont", "titre_calendrier": "Agde", "devis": "S00566", "order_id": 566, "doc_type": "devis", "doc_etat": "draft", "montant": 2000.46, "date": "2026-03-03", "calendar": "equipest3@gmail.com", "adresse": "450 Chemin de Beaumont 34300 Agde", "phone": "", "lat": 43.346922, "lon": 3.480643, "geo_score": 0.77, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Pellequer", "titre_calendrier": "Ales", "devis": "S00511", "order_id": 511, "doc_type": "commande", "doc_etat": "sale", "montant": 1593.13, "date": "2026-03-04", "calendar": "equipest3@gmail.com", "adresse": "14 Hameau de Caussonille 30340 Saint-Julien-les-Rosiers", "phone": "", "lat": 44.184485, "lon": 4.111112, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "Demarque Philippe", "titre_calendrier": "Lattes Maurin", "devis": "S00712", "order_id": 712, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-06", "calendar": "equipest3@gmail.com", "adresse": "197 Rue des Cevennes 34970 Lattes", "phone": "", "lat": 43.558602, "lon": 3.872239, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Robert Guy", "titre_calendrier": "Perols", "devis": "S00571", "order_id": 571, "doc_type": "commande", "doc_etat": "sale", "montant": 671.0, "date": "2026-03-06", "calendar": "equipest3@gmail.com", "adresse": "15 Rue des Ombrines 34470 Pérols", "phone": "", "lat": 43.564979, "lon": 3.94129, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Vallet", "titre_calendrier": "Aix en Provence", "devis": "S00572", "order_id": 572, "doc_type": "commande", "doc_etat": "sale", "montant": 565.57, "date": "2026-03-09", "calendar": "equipest3@gmail.com", "adresse": "955 Avenue de Brédasque 13090 Aix-en-Provence", "phone": "", "lat": 43.53811, "lon": 5.41119, "geo_score": 0.77, "section": "certain", "color": "#ed8936"}, {"nom": "Les Jardins de Beaumont", "titre_calendrier": "Agde", "devis": "S00566", "order_id": 566, "doc_type": "devis", "doc_etat": "draft", "montant": 2000.46, "date": "2026-03-10", "calendar": "equipest3@gmail.com", "adresse": "450 Chemin de Beaumont 34300 Agde", "phone": "", "lat": 43.346922, "lon": 3.480643, "geo_score": 0.77, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Girot", "titre_calendrier": "Frontignan", "devis": "S00610", "order_id": 610, "doc_type": "commande", "doc_etat": "sale", "montant": 982.3, "date": "2026-03-10", "calendar": "equipest3@gmail.com", "adresse": "14 Rue Sully 34110 Frontignan", "phone": "", "lat": 43.460231, "lon": 3.760705, "geo_score": 0.97, "section": "certain", "color": "#ed8936"}, {"nom": "SCI la filature", "titre_calendrier": "Canne et clairan", "devis": "S00568", "order_id": 568, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-11", "calendar": "st3telecoms@gmail.com", "adresse": "111 Chemin du Mazet 30260 Cannes-et-Clairan", "phone": "", "lat": 43.901455, "lon": 4.08228, "geo_score": 0.78, "section": "certain", "color": "#e53e3e"}, {"nom": "SCI la filature", "titre_calendrier": "Canne et clairan", "devis": "S00568", "order_id": 568, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-11", "calendar": "equipest3@gmail.com", "adresse": "111 Chemin du Mazet 30260 Cannes-et-Clairan", "phone": "", "lat": 43.901455, "lon": 4.08228, "geo_score": 0.78, "section": "certain", "color": "#ed8936"}, {"nom": "Face LR", "titre_calendrier": "Vendargues", "devis": "S00552", "order_id": 552, "doc_type": "commande", "doc_etat": "sale", "montant": 168.0, "date": "2026-03-11", "calendar": "equipest3@gmail.com", "adresse": "260 Rue de la Garenne 34740 Vendargues", "phone": "", "lat": 43.656798, "lon": 3.949805, "geo_score": 0.53, "section": "certain", "color": "#ed8936"}, {"nom": "Mme CLARAC", "titre_calendrier": "Candillargues", "devis": "S00590", "order_id": 590, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-12", "calendar": "equipest3@gmail.com", "adresse": "15 Avenue Georges Brassens 34130 Candillargues", "phone": "", "lat": 43.619162, "lon": 4.06705, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "Surho Architecture", "titre_calendrier": "Castelneau", "devis": "S00621", "order_id": 621, "doc_type": "commande", "doc_etat": "sale", "montant": 670.8, "date": "2026-03-12", "calendar": "st3telecoms@gmail.com", "adresse": "1720 Avenue de l’Europe 34170 Castelnau-le-Lez", "phone": "", "lat": 43.632757, "lon": 3.916421, "geo_score": 0.78, "section": "certain", "color": "#e53e3e"}, {"nom": "Mr Bussier", "titre_calendrier": "Londe les maures", "devis": "S00577", "order_id": 577, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-03-13", "calendar": "equipest3@gmail.com", "adresse": "50 Place Dumont d’Urville 83250 La Londe-les-Maures", "phone": "", "lat": 43.121259, "lon": 6.245328, "geo_score": 0.78, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Le Bail", "titre_calendrier": "Eyguieres", "devis": "S00578", "order_id": 578, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-03-13", "calendar": "equipest3@gmail.com", "adresse": "5 Les Gillouses 13430 Eyguières", "phone": "", "lat": 43.699012, "lon": 5.036355, "geo_score": 0.95, "section": "certain", "color": "#ed8936"}, {"nom": "Surho Architecture", "titre_calendrier": "Castelneau", "devis": "S00621", "order_id": 621, "doc_type": "commande", "doc_etat": "sale", "montant": 670.8, "date": "2026-03-18", "calendar": "equipest3@gmail.com", "adresse": "1720 Avenue de l’Europe 34170 Castelnau-le-Lez", "phone": "", "lat": 43.632757, "lon": 3.916421, "geo_score": 0.69, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Pellequer", "titre_calendrier": "Saint Julien", "devis": "S00511", "order_id": 511, "doc_type": "commande", "doc_etat": "sale", "montant": 1593.13, "date": "2026-03-18", "calendar": "equipest3@gmail.com", "adresse": "14 Hameau de Caussonille 30340 Saint-Julien-les-Rosiers", "phone": "", "lat": 44.184485, "lon": 4.111112, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "SCI la filature", "titre_calendrier": "Canne et clairan", "devis": "S00568", "order_id": 568, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-19", "calendar": "equipest3@gmail.com", "adresse": "111 Chemin du Mazet 30260 Cannes-et-Clairan", "phone": "", "lat": 43.901455, "lon": 4.08228, "geo_score": 0.78, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Malaval Remy", "titre_calendrier": "St Gely du fesc", "devis": "S00597", "order_id": 597, "doc_type": "devis", "doc_etat": "draft", "montant": 1298.0, "date": "2026-03-20", "calendar": "equipest3@gmail.com", "adresse": "54 Rue Claude Debussy 34980 Saint-Gély-du-Fesc", "phone": "", "lat": 43.688855, "lon": 3.798717, "geo_score": 0.95, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Fabre", "titre_calendrier": "Rognac", "devis": "S00558", "order_id": 558, "doc_type": "commande", "doc_etat": "sale", "montant": 1323.08, "date": "2026-03-23", "calendar": "equipest3@gmail.com", "adresse": "7 Impasse de Poligny 1 13340 Rognac", "phone": "", "lat": 43.491365, "lon": 5.228821, "geo_score": 0.73, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Nielsen", "titre_calendrier": "Mimet", "devis": "S00596", "order_id": 596, "doc_type": "commande", "doc_etat": "sale", "montant": 753.5, "date": "2026-03-23", "calendar": "equipest3@gmail.com", "adresse": "28 Rue de l'Etoile 13105 Mimet", "phone": "", "lat": 43.417058, "lon": 5.512446, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Copropriété Isis Europa", "titre_calendrier": "Isis europa", "devis": "S00111", "order_id": 111, "doc_type": "commande", "doc_etat": "sale", "montant": 3597.0, "date": "2026-03-24", "calendar": "equipest3@gmail.com", "adresse": "62 Avenue de l’Europe 34280 La Grande-Motte", "phone": "+33 6 08 61 47 94", "lat": 43.558879, "lon": 4.089557, "geo_score": 0.76, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Leon", "titre_calendrier": "Poulx", "devis": "S00600", "order_id": 600, "doc_type": "commande", "doc_etat": "sale", "montant": 679.8, "date": "2026-03-24", "calendar": "equipest3@gmail.com", "adresse": "98 Rue de la Montagnette 30320 Poulx", "phone": "", "lat": 43.906921, "lon": 4.413681, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Pellequer", "titre_calendrier": "Saint Julien", "devis": "S00511", "order_id": 511, "doc_type": "commande", "doc_etat": "sale", "montant": 1593.13, "date": "2026-03-25", "calendar": "st3telecoms@gmail.com", "adresse": "14 Hameau de Caussonille 30340 Saint-Julien-les-Rosiers", "phone": "", "lat": 44.184485, "lon": 4.111112, "geo_score": 0.79, "section": "certain", "color": "#e53e3e"}, {"nom": "Mme Perret", "titre_calendrier": "Villevielle", "devis": "S00630", "order_id": 630, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-25", "calendar": "equipest3@gmail.com", "adresse": "3 Impasse du Gardian 30250 Villevieille", "phone": "", "lat": 43.785764, "lon": 4.099247, "geo_score": 0.73, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Girot", "titre_calendrier": "Frontignan", "devis": "S00610", "order_id": 610, "doc_type": "commande", "doc_etat": "sale", "montant": 982.3, "date": "2026-03-26", "calendar": "st3telecoms@gmail.com", "adresse": "14 Rue Sully 34110 Frontignan", "phone": "", "lat": 43.460231, "lon": 3.760705, "geo_score": 0.97, "section": "certain", "color": "#e53e3e"}, {"nom": "Mr Girot", "titre_calendrier": "Frontignan", "devis": "S00610", "order_id": 610, "doc_type": "commande", "doc_etat": "sale", "montant": 982.3, "date": "2026-03-26", "calendar": "equipest3@gmail.com", "adresse": "14 Rue Sully 34110 Frontignan", "phone": "", "lat": 43.460231, "lon": 3.760705, "geo_score": 0.97, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Dumas", "titre_calendrier": "Buzignargues", "devis": "S00629", "order_id": 629, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-26", "calendar": "equipest3@gmail.com", "adresse": "Chemin du Moulin à Vent 34160 Galargues", "phone": "", "lat": 43.771312, "lon": 4.016163, "geo_score": 0.71, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Catelon", "titre_calendrier": "Eygalieres", "devis": "S00602", "order_id": 602, "doc_type": "commande", "doc_etat": "sale", "montant": 865.87, "date": "2026-03-27", "calendar": "equipest3@gmail.com", "adresse": "553 Chemin des Fontinelles 13810 Eygalières", "phone": "", "lat": 43.757225, "lon": 4.952872, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Dumay", "titre_calendrier": "Roquebrune", "devis": "S00628", "order_id": 628, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-03-27", "calendar": "equipest3@gmail.com", "adresse": "90 impasse des ardennes 83520 Roquebrune-sur-Argens", "phone": "", "lat": 43.460984, "lon": 6.632634, "geo_score": 0.77, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Fabre", "titre_calendrier": "Rognac", "devis": "S00558", "order_id": 558, "doc_type": "commande", "doc_etat": "sale", "montant": 1323.08, "date": "2026-03-27", "calendar": "equipest3@gmail.com", "adresse": "7 Impasse de Poligny 1 13340 Rognac", "phone": "", "lat": 43.491365, "lon": 5.228821, "geo_score": 0.73, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Marulier", "titre_calendrier": "LGM", "devis": "S00617", "order_id": 617, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-30", "calendar": "equipest3@gmail.com", "adresse": "Impasse du Bois du Couchant 34280 La Grande-Motte", "phone": "", "lat": 43.563701, "lon": 4.064432, "geo_score": 0.71, "section": "certain", "color": "#ed8936"}, {"nom": "Copropriété Isis Europa", "titre_calendrier": "Isis europa", "devis": "S00111", "order_id": 111, "doc_type": "commande", "doc_etat": "sale", "montant": 3597.0, "date": "2026-03-30", "calendar": "equipest3@gmail.com", "adresse": "62 Avenue de l’Europe 34280 La Grande-Motte", "phone": "+33 6 08 61 47 94", "lat": 43.558879, "lon": 4.089557, "geo_score": 0.76, "section": "certain", "color": "#ed8936"}, {"nom": "Agence STI", "titre_calendrier": "LGM", "devis": "S00634", "order_id": 634, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-03-31", "calendar": "equipest3@gmail.com", "adresse": "100 Allée des Oliviers 34280 La Grande-Motte", "phone": "", "lat": 43.562504, "lon": 4.070775, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Robert Guy", "titre_calendrier": "Perols", "devis": "S00611", "order_id": 611, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-31", "calendar": "equipest3@gmail.com", "adresse": "15 Rue des Ombrines 34470 Pérols", "phone": "", "lat": 43.564979, "lon": 3.94129, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Agence STI", "titre_calendrier": "LGM", "devis": "S00634", "order_id": 634, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-03-31", "calendar": "equipest3@gmail.com", "adresse": "707 Avenue du Bois du Couchant 34280 La Grande-Motte", "phone": "", "lat": 43.56279, "lon": 4.064017, "geo_score": 0.72, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Casteur", "titre_calendrier": "Carpentras", "devis": "S00619", "order_id": 619, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-04-01", "calendar": "equipest3@gmail.com", "adresse": "Impasse des Dentelles 84200 Carpentras", "phone": "", "lat": 44.070447, "lon": 5.06334, "geo_score": 0.61, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Girot", "titre_calendrier": "Frontignan", "devis": "S00610", "order_id": 610, "doc_type": "commande", "doc_etat": "sale", "montant": 982.3, "date": "2026-04-02", "calendar": "equipest3@gmail.com", "adresse": "14 Rue Sully 34110 Frontignan", "phone": "", "lat": 43.460231, "lon": 3.760705, "geo_score": 0.97, "section": "certain", "color": "#ed8936"}, {"nom": "Demarque Philippe", "titre_calendrier": "Lattes Maurin", "devis": "S00712", "order_id": 712, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-04-07", "calendar": "equipest3@gmail.com", "adresse": "197 Rue des Cevennes 34970 Lattes", "phone": "", "lat": 43.558602, "lon": 3.872239, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Les Jardins de Beaumont", "titre_calendrier": "Jardin de beaumont", "devis": "S00566", "order_id": 566, "doc_type": "devis", "doc_etat": "draft", "montant": 2000.46, "date": "2026-04-10", "calendar": "equipest3@gmail.com", "adresse": "450 Chemin de Beaumont 34300 Agde", "phone": "", "lat": 43.346922, "lon": 3.480643, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Agence STI", "titre_calendrier": "Lgm", "devis": "S00652", "order_id": 652, "doc_type": "devis", "doc_etat": "draft", "montant": 36227.8, "date": "2026-04-14", "calendar": "equipest3@gmail.com", "adresse": "707 Avenue du Bois du Couchant 34280 La Grande-Motte", "phone": "", "lat": 43.56279, "lon": 4.064017, "geo_score": 0.72, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Perret", "titre_calendrier": "Villevielle", "devis": "S00630", "order_id": 630, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-04-16", "calendar": "st3telecoms@gmail.com", "adresse": "3 Impasse du Gardian 30250 Villevieille", "phone": "", "lat": 43.785764, "lon": 4.099247, "geo_score": 0.73, "section": "certain", "color": "#e53e3e"}, {"nom": "Mr Catelon", "titre_calendrier": "Eygalieres", "devis": "S00602", "order_id": 602, "doc_type": "commande", "doc_etat": "sale", "montant": 865.87, "date": "2026-04-20", "calendar": "equipest3@gmail.com", "adresse": "553 Chemin des Fontinelles 13810 Eygalières", "phone": "", "lat": 43.757225, "lon": 4.952872, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Clanet", "titre_calendrier": "Paulhan", "devis": "S00638", "order_id": 638, "doc_type": "commande", "doc_etat": "sale", "montant": 592.9, "date": "2026-04-22", "calendar": "equipest3@gmail.com", "adresse": "113 Rue du Ravin 34230 Paulhan", "phone": "", "lat": 43.54484, "lon": 3.454066, "geo_score": 0.78, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Vallet", "titre_calendrier": "Aix en Provence", "devis": "S00572", "order_id": 572, "doc_type": "commande", "doc_etat": "sale", "montant": 565.57, "date": "2026-04-23", "calendar": "equipest3@gmail.com", "adresse": "955 Avenue de Brédasque 13090 Aix-en-Provence", "phone": "", "lat": 43.53811, "lon": 5.41119, "geo_score": 0.77, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Leon", "titre_calendrier": "Poulx", "devis": "S00600", "order_id": 600, "doc_type": "commande", "doc_etat": "sale", "montant": 679.8, "date": "2026-04-24", "calendar": "equipest3@gmail.com", "adresse": "98 Rue de la Montagnette 30320 Poulx", "phone": "", "lat": 43.906921, "lon": 4.413681, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Agence STI", "titre_calendrier": "LGM", "devis": "S00605", "order_id": 605, "doc_type": "commande", "doc_etat": "sale", "montant": 622.08, "date": "2026-04-24", "calendar": "equipest3@gmail.com", "adresse": "707 Avenue du Bois du Couchant 34280 La Grande-Motte", "phone": "", "lat": 43.56279, "lon": 4.064017, "geo_score": 0.72, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Picci", "titre_calendrier": "Frejus", "devis": "S00707", "order_id": 707, "doc_type": "commande", "doc_etat": "sale", "montant": 300.0, "date": "2026-04-27", "calendar": "equipest3@gmail.com", "adresse": "3 Allee SUETONE 83600 Fréjus", "phone": "", "lat": 43.456431, "lon": 6.756003, "geo_score": 0.76, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Baumgartner Angélique", "titre_calendrier": "Montpellier", "devis": "S00650", "order_id": 650, "doc_type": "devis", "doc_etat": "draft", "montant": 5597.9, "date": "2026-04-27", "calendar": "st3telecoms@gmail.com", "adresse": "70 Rue Pierre Cardenal 34080 Montpellier", "phone": "", "lat": 43.637367, "lon": 3.818868, "geo_score": 0.98, "section": "certain", "color": "#e53e3e"}, {"nom": "Face LR", "titre_calendrier": "Vendargues", "devis": "S00552", "order_id": 552, "doc_type": "commande", "doc_etat": "sale", "montant": 168.0, "date": "2026-04-28", "calendar": "equipest3@gmail.com", "adresse": "260 Rue de la Garenne 34740 Vendargues", "phone": "", "lat": 43.656798, "lon": 3.949805, "geo_score": 0.53, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Faisse", "titre_calendrier": "Gajan", "devis": "S00706", "order_id": 706, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-04-28", "calendar": "equipest3@gmail.com", "adresse": "Chemin des Sources 30730 Gajan", "phone": "", "lat": 43.894794, "lon": 4.212882, "geo_score": 0.67, "section": "certain", "color": "#ed8936"}, {"nom": "Mr JC Martinez", "titre_calendrier": "Aigues morte", "devis": "S00581", "order_id": 581, "doc_type": "devis", "doc_etat": "draft", "montant": 1817.2, "date": "2026-04-28", "calendar": "equipest3@gmail.com", "adresse": "14 Rue Marceau 30220 Aigues-Mortes", "phone": "", "lat": 43.565756, "lon": 4.190915, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Nielsen", "titre_calendrier": "Mimet", "devis": "S00596", "order_id": 596, "doc_type": "commande", "doc_etat": "sale", "montant": 753.5, "date": "2026-04-29", "calendar": "equipest3@gmail.com", "adresse": "28 Rue de l'Etoile 13105 Mimet", "phone": "", "lat": 43.417058, "lon": 5.512446, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Leon", "titre_calendrier": "Poulx", "devis": "S00600", "order_id": 600, "doc_type": "commande", "doc_etat": "sale", "montant": 679.8, "date": "2026-05-05", "calendar": "equipest3@gmail.com", "adresse": "98 Rue de la Montagnette 30320 Poulx", "phone": "", "lat": 43.906921, "lon": 4.413681, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Genevieve", "titre_calendrier": "St Jean de Vedas", "devis": "S00601", "order_id": 601, "doc_type": "commande", "doc_etat": "sale", "montant": 1227.03, "date": "2026-05-06", "calendar": "equipest3@gmail.com", "adresse": "2 Impasse des Alicantes 34430 Saint-Jean-de-Védas", "phone": "", "lat": 43.580612, "lon": 3.83625, "geo_score": 0.77, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Libert Colas Laurence", "titre_calendrier": "Colas", "devis": "S00635", "order_id": 635, "doc_type": "commande", "doc_etat": "sale", "montant": 493.46, "date": "2026-05-06", "calendar": "st3telecoms@gmail.com", "adresse": "8 Boulevard de la Colline 34980 Saint-Clément-de-Rivière", "phone": "", "lat": 43.693277, "lon": 3.849694, "geo_score": 0.56, "section": "certain", "color": "#e53e3e"}, {"nom": "Agence STI", "titre_calendrier": "Lgm", "devis": "S00704", "order_id": 704, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-05-06", "calendar": "st3telecoms@gmail.com", "adresse": "88 Avenue Robert Fages 34280 La Grande-Motte", "phone": "", "lat": 43.560466, "lon": 4.080787, "geo_score": 0.65, "section": "certain", "color": "#e53e3e"}, {"nom": "Thiebeaux David", "titre_calendrier": "Mouries (13)", "devis": "S00693", "order_id": 693, "doc_type": "devis", "doc_etat": "draft", "montant": 1160.28, "date": "2026-05-13", "calendar": "equipest3@gmail.com", "adresse": "24 Avenue des Alpilles 13890 Mouriès", "phone": "", "lat": 43.694071, "lon": 4.870296, "geo_score": 0.73, "section": "certain", "color": "#ed8936"}, {"nom": "Agence STI", "titre_calendrier": "LGM", "devis": "S00704", "order_id": 704, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-05-15", "calendar": "equipest3@gmail.com", "adresse": "100 Allée des Oliviers 34280 La Grande-Motte", "phone": "", "lat": 43.562504, "lon": 4.070775, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Aprin", "titre_calendrier": "Ils sur sorgues", "devis": "S00686", "order_id": 686, "doc_type": "devis", "doc_etat": "draft", "montant": 569.8, "date": "2026-05-18", "calendar": "equipest3@gmail.com", "adresse": "472 Route de Petit Palais 84800 L'Isle-sur-la-Sorgue", "phone": "", "lat": 43.876094, "lon": 5.080447, "geo_score": 0.67, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Sluysmans", "titre_calendrier": "Caromb", "devis": "S00688", "order_id": 688, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-05-18", "calendar": "equipest3@gmail.com", "adresse": "181 Impasse de la Gardette 84330 Caromb", "phone": "", "lat": 44.116886, "lon": 5.112951, "geo_score": 0.74, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Pavon", "titre_calendrier": "Miramas", "devis": "S00699", "order_id": 699, "doc_type": "devis", "doc_etat": "draft", "montant": 668.8, "date": "2026-05-18", "calendar": "equipest3@gmail.com", "adresse": "51 Avenue la Fayette 13140 Miramas", "phone": "", "lat": 43.578567, "lon": 4.993648, "geo_score": 0.66, "section": "certain", "color": "#ed8936"}, {"nom": "Thiebeaux David", "titre_calendrier": "Puget sur agens", "devis": "S00693", "order_id": 693, "doc_type": "devis", "doc_etat": "draft", "montant": 1160.28, "date": "2026-05-18", "calendar": "equipest3@gmail.com", "adresse": "288 Boulevard des Cistes 83480 Puget-sur-Argens", "phone": "", "lat": 43.469686, "lon": 6.689756, "geo_score": 0.71, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Libert Colas Laurence", "titre_calendrier": "St clement de rivière", "devis": "S00635", "order_id": 635, "doc_type": "commande", "doc_etat": "sale", "montant": 493.46, "date": "2026-05-20", "calendar": "equipest3@gmail.com", "adresse": "8 Boulevard de la Colline 34980 Saint-Clément-de-Rivière", "phone": "", "lat": 43.693277, "lon": 3.849694, "geo_score": 0.56, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Chavernac", "titre_calendrier": "Clapier", "devis": "S00713", "order_id": 713, "doc_type": "devis", "doc_etat": "draft", "montant": 358.6, "date": "2026-05-22", "calendar": "equipest3@gmail.com", "adresse": "23 Rue du Vallon 34830 Clapiers", "phone": "", "lat": 43.664522, "lon": 3.887317, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Mr et Mme Linney", "titre_calendrier": "MICHAEL LINNEY et Gestion ST3 telecoms", "devis": "S00700", "order_id": 700, "doc_type": "devis", "doc_etat": "draft", "montant": 803.0, "date": "2026-05-22", "calendar": "st3gestion@gmail.com", "adresse": "Aiguèze", "phone": "", "lat": 44.300787, "lon": 4.552976, "geo_score": 0.93, "section": "certain", "color": "#ed64a6"}, {"nom": "Mr et Mme Linney", "titre_calendrier": "Aigueze", "devis": "S00700", "order_id": 700, "doc_type": "devis", "doc_etat": "draft", "montant": 803.0, "date": "2026-05-22", "calendar": "equipest3@gmail.com", "adresse": "117 Chemin Vieux 30760 Aiguèze", "phone": "", "lat": 44.301163, "lon": 4.553399, "geo_score": 0.74, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Clanet", "titre_calendrier": "Paulhan", "devis": "S00638", "order_id": 638, "doc_type": "commande", "doc_etat": "sale", "montant": 592.9, "date": "2026-05-26", "calendar": "equipest3@gmail.com", "adresse": "113 Rue du Ravin 34230 Paulhan", "phone": "", "lat": 43.54484, "lon": 3.454066, "geo_score": 0.78, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Savoye", "titre_calendrier": "LGM", "devis": "S00716", "order_id": 716, "doc_type": "devis", "doc_etat": "draft", "montant": 492.58, "date": "2026-05-28", "calendar": "equipest3@gmail.com", "adresse": "112 Rue du Sirocco 34280 La Grande-Motte", "phone": "0670256746", "lat": 43.560625, "lon": 4.049136, "geo_score": 0.95, "section": "certain", "color": "#ed8936"}, {"nom": "Mr et Mme Bonin", "titre_calendrier": "Mme bonin", "devis": "S00690", "order_id": 690, "doc_type": "devis", "doc_etat": "draft", "montant": 488.4, "date": "2026-05-28", "calendar": "equipest3@gmail.com", "adresse": "Rue de l'Amitié 30380 Saint-Christol-lez-Alès", "phone": "", "lat": 44.071687, "lon": 4.092376, "geo_score": 0.8, "section": "certain", "color": "#ed8936"}, {"nom": "Mme Arl Raymond", "titre_calendrier": "Agde", "devis": "S00691", "order_id": 691, "doc_type": "devis", "doc_etat": "draft", "montant": 437.8, "date": "2026-06-01", "calendar": "equipest3@gmail.com", "adresse": "18 Rue des Grands Manteaux 34300 Agde", "phone": "", "lat": 43.304496, "lon": 3.479879, "geo_score": 0.97, "section": "certain", "color": "#ed8936"}, {"nom": "Les Jardins de Beaumont", "titre_calendrier": "Agde", "devis": "S00566", "order_id": 566, "doc_type": "devis", "doc_etat": "draft", "montant": 2000.46, "date": "2026-06-02", "calendar": "equipest3@gmail.com", "adresse": "450 Chemin de Beaumont 34300 Agde", "phone": "", "lat": 43.346922, "lon": 3.480643, "geo_score": 0.96, "section": "certain", "color": "#ed8936"}, {"nom": "Jérôme BILLARD  SARL PROMETHEUS", "titre_calendrier": "Rappeler jerome billard prometheus", "devis": "S00487", "order_id": 487, "doc_type": "commande", "doc_etat": "sale", "montant": 3936.36, "date": "2026-06-03", "calendar": "st3telecoms@gmail.com", "adresse": "418 Chemin de la Croisette 30121 Mus", "phone": "", "lat": 43.737019, "lon": 4.205995, "geo_score": 0.65, "section": "certain", "color": "#e53e3e"}, {"nom": "SCI du Vigneret", "titre_calendrier": "Castellet", "devis": "S00694", "order_id": 694, "doc_type": "commande", "doc_etat": "sale", "montant": 220.0, "date": "2026-06-10", "calendar": "equipest3@gmail.com", "adresse": "1120 Route des Mourvèdres 83330 Le Castellet", "phone": "", "lat": 43.192807, "lon": 5.770178, "geo_score": 0.79, "section": "certain", "color": "#ed8936"}, {"nom": "Mr Nicolas DIDO", "titre_calendrier": "Puget sur argens(83)", "devis": "S00545", "order_id": 545, "doc_type": "annulé", "doc_etat": "cancel", "montant": 887.7, "date": "2026-02-20", "calendar": "equipest3@gmail.com", "adresse": "37 Chemin de la Pinède 83480 Puget-sur-Argens", "phone": "", "lat": 43.464347, "lon": 6.692343, "geo_score": 0.8, "section": "probable", "color": "#ed8936"}, {"nom": "M Le Vourch", "titre_calendrier": "Jonquieres saint vincent", "devis": "S00575", "order_id": 575, "doc_type": "devis", "doc_etat": "draft", "montant": 662.2, "date": "2026-03-11", "calendar": "equipest3@gmail.com", "adresse": "6 Rue Theophile Michel 30300 Jonquières-Saint-Vincent", "phone": "", "lat": 43.828776, "lon": 4.550669, "geo_score": 0.96, "section": "probable", "color": "#ed8936"}, {"nom": "Mme Adela Barbu", "titre_calendrier": "Clapiers", "devis": "S00609", "order_id": 609, "doc_type": "devis", "doc_etat": "draft", "montant": 684.64, "date": "2026-03-24", "calendar": "st3telecoms@gmail.com", "adresse": "685 Avenue du Martinet 34830 Clapiers", "phone": "", "lat": 43.64763, "lon": 3.886593, "geo_score": 0.73, "section": "probable", "color": "#e53e3e"}, {"nom": "Mr Ribas Serge", "titre_calendrier": "Bollene", "devis": "S00594", "order_id": 594, "doc_type": "commande", "doc_etat": "sale", "montant": 100.0, "date": "2026-04-01", "calendar": "equipest3@gmail.com", "adresse": "12 Lotissement les Iris 84500 Bollène", "phone": "", "lat": 44.312166, "lon": 4.747105, "geo_score": 0.6, "section": "probable", "color": "#ed8936"}, {"nom": "Mme Bel Brigitte", "titre_calendrier": "Villeneuve les maguelonnes", "devis": "S00624", "order_id": 624, "doc_type": "devis", "doc_etat": "draft", "montant": 375.1, "date": "2026-04-14", "calendar": "equipest3@gmail.com", "adresse": "176 Boulevard des Chasselas 34750 Villeneuve-lès-Maguelone", "phone": "", "lat": 43.530382, "lon": 3.863155, "geo_score": 0.5, "section": "probable", "color": "#ed8936"}, {"nom": "Mr Kikmoun", "titre_calendrier": "St remy de provence", "devis": "S00641", "order_id": 641, "doc_type": "commande", "doc_etat": "sale", "montant": 497.2, "date": "2026-04-23", "calendar": "equipest3@gmail.com", "adresse": "6 Lotissement Mas de Bigau 13210 Saint-Rémy-de-Provence", "phone": "", "lat": 43.782889, "lon": 4.849571, "geo_score": 0.71, "section": "probable", "color": "#ed8936"}, {"nom": "Mr Kikmoun", "titre_calendrier": "St remy de provence", "devis": "S00641", "order_id": 641, "doc_type": "commande", "doc_etat": "sale", "montant": 497.2, "date": "2026-05-12", "calendar": "equipest3@gmail.com", "adresse": "6 Lotissement Mas de Bigau 13210 Saint-Rémy-de-Provence", "phone": "", "lat": 43.782889, "lon": 4.849571, "geo_score": 0.71, "section": "probable", "color": "#ed8936"}, {"nom": "KFM Toiture peinture étanchéité Mr Kerherno Franck", "titre_calendrier": "Lunel viel", "devis": "S00480", "order_id": 480, "doc_type": "commande", "doc_etat": "sale", "montant": 807.0, "date": "2026-03-03", "calendar": "equipest3@gmail.com", "adresse": "153 Rue de l'Avenir 34400 Lunel-Viel", "phone": "", "lat": 43.678943, "lon": 4.087596, "geo_score": 0.96, "section": "probable", "color": "#ed8936"}, {"nom": "Christine Marcellin", "titre_calendrier": "Kristine castries", "devis": "S00695", "order_id": 695, "doc_type": "commande", "doc_etat": "sale", "montant": 2112.0, "date": "2026-05-29", "calendar": "equipest3@gmail.com", "adresse": "9 Rue des Alizés 34160 Castries", "phone": "", "lat": 43.679093, "lon": 3.978932, "geo_score": 0.96, "section": "probable", "color": "#ed8936"}, {"nom": "Mr Do Claude", "titre_calendrier": "Fuveau", "devis": "S00436", "order_id": 436, "doc_type": "annulé", "doc_etat": "cancel", "montant": 4087.92, "date": "2026-02-25", "calendar": "equipest3@gmail.com", "adresse": "Chemin des Vertus 13710 Fuveau", "phone": "", "lat": 43.446059, "lon": 5.559091, "geo_score": 0.6, "section": "probable", "color": "#ed8936"}, {"nom": "Boukaker Lathuile", "titre_calendrier": "Montferrier", "devis": "S00613", "order_id": 613, "doc_type": "annulé", "doc_etat": "cancel", "montant": 360.0, "date": "2026-03-09", "calendar": "equipest3@gmail.com", "adresse": "263 Chemin du Pioch de Baïllos 34980 Montferrier-sur-Lez", "phone": "", "lat": 43.663796, "lon": 3.855345, "geo_score": 0.81, "section": "probable", "color": "#ed8936"}, {"nom": "Mr Genevieve", "titre_calendrier": "St Jean de Vedas", "devis": "S00601", "order_id": 601, "doc_type": "commande", "doc_etat": "sale", "montant": 1227.03, "date": "2026-03-26", "calendar": "equipest3@gmail.com", "adresse": "2 Impasse des Alicantes 34430 Saint-Jean-de-Védas", "phone": "", "lat": 43.580612, "lon": 3.83625, "geo_score": 0.77, "section": "probable", "color": "#ed8936"}, {"nom": "Copropriété Isis Europa", "titre_calendrier": "Isis europa LGM", "devis": "S00111", "order_id": 111, "doc_type": "commande", "doc_etat": "sale", "montant": 3597.0, "date": "2026-04-09", "calendar": "equipest3@gmail.com", "adresse": "62 Avenue de l’Europe 34280 La Grande-Motte", "phone": "+33 6 08 61 47 94", "lat": 43.558879, "lon": 4.089557, "geo_score": 0.76, "section": "probable", "color": "#ed8936"}, {"nom": "Jérôme BILLARD  SARL PROMETHEUS", "titre_calendrier": "Bernis", "devis": "S00487", "order_id": 487, "doc_type": "commande", "doc_etat": "sale", "montant": 3936.36, "date": "2026-02-26", "calendar": "equipest3@gmail.com", "adresse": "1 Chemin Bas de Milhaud 30620 Bernis", "phone": "", "lat": 43.771434, "lon": 4.288776, "geo_score": 0.77, "section": "probable", "color": "#ed8936"}, {"nom": "Mme Collomb", "titre_calendrier": "LGM", "devis": "S00615", "order_id": 615, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-03-30", "calendar": "equipest3@gmail.com", "adresse": "45 Allée de l’Odyssée 34280 La Grande-Motte", "phone": "", "lat": 43.559019, "lon": 4.068084, "geo_score": 0.78, "section": "probable", "color": "#ed8936"}, {"nom": "Mme Collomb", "titre_calendrier": "LGM", "devis": "S00615", "order_id": 615, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-04-28", "calendar": "equipest3@gmail.com", "adresse": "45 Allée de l’Odyssée 34280 La Grande-Motte", "phone": "", "lat": 43.559019, "lon": 4.068084, "geo_score": 0.78, "section": "probable", "color": "#ed8936"}, {"nom": "2H energy", "titre_calendrier": "Vitrolles", "devis": "S00563", "order_id": 563, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-03-13", "calendar": "equipest3@gmail.com", "adresse": "10 Boulevard Marcel Hochet 13127 Vitrolles", "phone": "", "lat": 43.455411, "lon": 5.246745, "geo_score": 0.7, "section": "probable", "color": "#ed8936"}, {"nom": "Copropriété Le Babylone", "titre_calendrier": "Europa", "devis": "S00459", "order_id": 459, "doc_type": "commande", "doc_etat": "sale", "montant": 9900.0, "date": "2026-03-16", "calendar": "equipest3@gmail.com", "adresse": "Avenue de la Petite Motte 34280 La Grande-Motte", "phone": "", "lat": 43.567665, "lon": 4.075711, "geo_score": 0.54, "section": "probable", "color": "#ed8936"}, {"nom": "Mr Robert Guy", "titre_calendrier": "Perols", "devis": "S00611", "order_id": 611, "doc_type": "commande", "doc_etat": "sale", "montant": 150.0, "date": "2026-04-15", "calendar": "equipest3@gmail.com", "adresse": "3 Rue des Agapanthes 34470 Pérols", "phone": "", "lat": 43.565691, "lon": 3.941864, "geo_score": 0.96, "section": "probable", "color": "#ed8936"}, {"nom": "Mr Mahé Vincent", "titre_calendrier": "LGM", "devis": "S00626", "order_id": 626, "doc_type": "devis", "doc_etat": "draft", "montant": 393.25, "date": "2026-04-20", "calendar": "st3telecoms@gmail.com", "adresse": "199 Avenue Jean Bene 34280 La Grande-Motte", "phone": "", "lat": 43.561469, "lon": 4.083522, "geo_score": 0.55, "section": "probable", "color": "#e53e3e"}, {"nom": "Mme Sigier", "titre_calendrier": "Nimes", "devis": "S00647", "order_id": 647, "doc_type": "commande", "doc_etat": "sale", "montant": 200.0, "date": "2026-04-24", "calendar": "equipest3@gmail.com", "adresse": "6 Place du Château 30000 Nîmes", "phone": "", "lat": 43.839495, "lon": 4.362803, "geo_score": 0.74, "section": "probable", "color": "#ed8936"}, {"nom": "Belarga", "titre_calendrier": "Belarga", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-02-24", "calendar": "equipest3@gmail.com", "adresse": "9bis Route Croix de Saint Antoine 34230 Bélarga", "phone": "+33660065306", "lat": 43.552254, "lon": 3.493713, "geo_score": 0.67, "section": "orphelin", "color": "#ed8936"}, {"nom": "Noto et Gestion ST3 telecoms", "titre_calendrier": "Noto et Gestion ST3 telecoms", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-03-02", "calendar": "st3gestion@gmail.com", "adresse": "Lattes", "phone": "", "lat": 43.570523, "lon": 3.900373, "geo_score": 0.95, "section": "orphelin", "color": "#ed64a6"}, {"nom": "Bordeaux", "titre_calendrier": "Bordeaux", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-03-06", "calendar": "equipest3@gmail.com", "adresse": "16 Rue Dardenne 33000 Bordeaux", "phone": "06 31 15 74 41", "lat": 44.851337, "lon": -0.584975, "geo_score": 0.97, "section": "orphelin", "color": "#ed8936"}, {"nom": "Annulé(e): Karine COELENBIER et Gestion ST3 telecoms", "titre_calendrier": "Annulé(e): Karine COELENBIER et Gestion ST3 telecoms", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-03-24", "calendar": "st3gestion@gmail.com", "adresse": "25 Avenue des Artisans 83120 Sainte-Maxime", "phone": "", "lat": 43.328928, "lon": 6.592696, "geo_score": 0.96, "section": "orphelin", "color": "#ed64a6"}, {"nom": "Beziers", "titre_calendrier": "Beziers", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-04-09", "calendar": "st3telecoms@gmail.com", "adresse": "53 Avenue de la Voie Domitienne 34500 Béziers", "phone": "+33608341330", "lat": 43.34872, "lon": 3.251391, "geo_score": 0.62, "section": "orphelin", "color": "#e53e3e"}, {"nom": "Toulouse", "titre_calendrier": "Toulouse", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-04-21", "calendar": "equipest3@gmail.com", "adresse": "Rue Tolosane 31000 Toulouse", "phone": "0608566870", "lat": 43.599096, "lon": 1.447055, "geo_score": 0.8, "section": "orphelin", "color": "#ed8936"}, {"nom": "Perpignan", "titre_calendrier": "Perpignan", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-15", "calendar": "equipest3@gmail.com", "adresse": "Rue Léon Trabis 66320 Vinça", "phone": "0662780437", "lat": 42.638147, "lon": 2.520066, "geo_score": 0.74, "section": "orphelin", "color": "#ed8936"}, {"nom": "Rillieux la Pape", "titre_calendrier": "Rillieux la Pape", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-19", "calendar": "equipest3@gmail.com", "adresse": "26 Avenue du Mont Blanc 69140 Rillieux-la-Pape", "phone": "+33636176842", "lat": 45.81039, "lon": 4.897174, "geo_score": 0.77, "section": "orphelin", "color": "#ed8936"}, {"nom": "Bernis", "titre_calendrier": "Bernis", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-20", "calendar": "equipest3@gmail.com", "adresse": "9 Rue des Rachalans 30320 Marguerittes", "phone": "+33610280373", "lat": 43.856223, "lon": 4.442913, "geo_score": 0.96, "section": "orphelin", "color": "#ed8936"}, {"nom": "Avignon", "titre_calendrier": "Avignon", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-22", "calendar": "st3telecoms@gmail.com", "adresse": "71 Chemin des Roseaux 84450 Saint-Saturnin-lès-Avignon", "phone": "+33680761767", "lat": 43.962754, "lon": 4.930526, "geo_score": 0.81, "section": "orphelin", "color": "#e53e3e"}, {"nom": "Saint Mathieu", "titre_calendrier": "Saint Mathieu", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-22", "calendar": "equipest3@gmail.com", "adresse": "243 Rue de la Fabrique 34270 Saint-Mathieu-de-Tréviers", "phone": "+33607305779", "lat": 43.764409, "lon": 3.860438, "geo_score": 0.96, "section": "orphelin", "color": "#ed8936"}, {"nom": "La capelle et masmolene 30", "titre_calendrier": "La capelle et masmolene 30", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-26", "calendar": "st3telecoms@gmail.com", "adresse": "Route de Masmolene 30700 La Capelle-et-Masmolène", "phone": "0761739554", "lat": 44.051662, "lon": 4.527642, "geo_score": 0.59, "section": "orphelin", "color": "#e53e3e"}, {"nom": "Biot", "titre_calendrier": "Biot", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-27", "calendar": "equipest3@gmail.com", "adresse": "311 Chemin du Plan 06410 Biot", "phone": "+33768644288", "lat": 43.622137, "lon": 7.101233, "geo_score": 0.76, "section": "orphelin", "color": "#ed8936"}, {"nom": "Avignon", "titre_calendrier": "Avignon", "devis": "", "order_id": null, "doc_type": "inconnu", "doc_etat": "", "montant": 0.0, "date": "2026-05-29", "calendar": "equipest3@gmail.com", "adresse": "2 Rue Louis Montagné 84140 Avignon", "phone": "+33612988711", "lat": 43.939337, "lon": 4.871653, "geo_score": 0.97, "section": "orphelin", "color": "#ed8936"}];
+
+// ── MAP ──────────────────────────────────────────────────────────
+const map = L.map('map', {center: [43.6108, 3.8767], zoom: 9});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 19
+}).addTo(map);
+
+// ── ICÔNES SVG ──────────────────────────────────────────────────
+function makeIcon(color) {
+  const svg = `<svg width="24" height="36" viewBox="0 0 24 36" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24S24 21 24 12C24 5.4 18.6 0 12 0z"
+          fill="${color}" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
+    <circle cx="12" cy="12" r="5" fill="white" opacity="0.85"/>
+  </svg>`;
+  return L.divIcon({
+    html: svg, iconSize: [24, 36], iconAnchor: [12, 36],
+    popupAnchor: [0, -38], className: ''
+  });
+}
+
+// ── FORMAT ───────────────────────────────────────────────────────
+function fDate(d) { return d ? d.substring(0, 10) : '—'; }
+function fMontant(m) {
+  if (!m || m === 0) return '—';
+  return m.toLocaleString('fr-FR', {style:'currency', currency:'EUR', maximumFractionDigits:0});
+}
+function badge(t) {
+  const cls = {commande:'badge-commande', devis:'badge-devis', 'annulé':'badge-annulé'}[t] || 'badge-inconnu';
+  const lab = {commande:'Commande', devis:'Devis', 'annulé':'Annulé', inconnu:'?'}[t] || t;
+  return `<span class="badge ${cls}">${lab}</span>`;
+}
+function agenda(cal) {
+  if (cal.includes('equipest3')) return 'Ouvrier';
+  if (cal.includes('telecoms')) return 'Directeurs';
+  if (cal.includes('gestion')) return 'Calendly';
+  return cal;
+}
+function odooUrl(c) {
+  if (c.order_id) return `https://st3-telecoms.odoo.com/odoo/sales/${c.order_id}`;
+  return null;
+}
+
+// ── POPUP ────────────────────────────────────────────────────────
+function popup(c) {
+  const url = odooUrl(c);
+  const link = url ? `<a href="${url}" target="_blank" class="popup-link">↗ Ouvrir dans Odoo</a>` : '';
+  const conf = c.section !== 'certain'
+    ? `<div class="popup-row"><span class="popup-key">Confiance</span><span class="popup-val" style="color:#f6c90e">${c.section}</span></div>` : '';
+  return `<div class="popup-inner">
+    <div class="popup-title">${c.nom || c.titre_calendrier}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      ${badge(c.doc_type)}
+      ${c.devis ? `<span style="font-size:11px;color:#8b949e">${c.devis}</span>` : ''}
+    </div>
+    <div class="popup-row"><span class="popup-key">Date</span><span class="popup-val">${fDate(c.date)}</span></div>
+    <div class="popup-row"><span class="popup-key">Montant</span><span class="popup-val">${fMontant(c.montant)}</span></div>
+    <div class="popup-row"><span class="popup-key">Agenda</span><span class="popup-val">${agenda(c.calendar)}</span></div>
+    <div class="popup-row"><span class="popup-key">Adresse</span><span class="popup-val">${c.adresse}</span></div>
+    ${c.phone ? `<div class="popup-row"><span class="popup-key">Tél.</span><span class="popup-val">${c.phone}</span></div>` : ''}
+    ${conf}
+    ${link}
+  </div>`;
+}
+
+// ── MARKERS ──────────────────────────────────────────────────────
+let activeMarkers = [];
+
+function renderMarkers(list) {
+  activeMarkers.forEach(m => m.remove());
+  activeMarkers = [];
+  list.forEach(c => {
+    const m = L.marker([c.lat, c.lon], {icon: makeIcon(c.color)})
+      .addTo(map)
+      .bindPopup(popup(c), {maxWidth: 290});
+    m._data = c;
+    activeMarkers.push(m);
+  });
+}
+
+// ── LISTE ────────────────────────────────────────────────────────
+function renderList(list) {
+  const el = document.getElementById('chantiers-list');
+  el.innerHTML = '';
+  const sorted = [...list].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  sorted.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'chantier-item';
+    div.innerHTML = `
+      <div style="display:flex;align-items:center;gap:5px">
+        <div style="width:7px;height:7px;border-radius:50%;background:${c.color};flex-shrink:0"></div>
+        <div class="nom">${c.nom || c.titre_calendrier}</div>
+      </div>
+      <div class="meta">
+        ${badge(c.doc_type)}
+        <span>${c.devis || '—'}</span>
+        <span>${fDate(c.date)}</span>
+        <span style="color:#3fb950">${fMontant(c.montant)}</span>
+      </div>`;
+    div.onclick = () => {
+      map.setView([c.lat, c.lon], 14);
+      const mk = activeMarkers.find(m => m._data === c);
+      if (mk) mk.openPopup();
+    };
+    el.appendChild(div);
+  });
+}
+
+// ── STATS ────────────────────────────────────────────────────────
+function updateStats(list) {
+  const nb = list.length;
+  const total = list.reduce((s, c) => s + (c.montant || 0), 0);
+  const villes = new Set(list.map(c => c.adresse.split(',')[0].trim())).size;
+  document.getElementById('stat-nb').textContent = nb;
+  document.getElementById('stat-total').textContent = total > 0
+    ? (total >= 1000 ? (total/1000).toFixed(0) + 'k€' : total.toFixed(0) + '€') : '—';
+  document.getElementById('stat-villes').textContent = villes;
+  document.getElementById('stat-moy').textContent = villes > 0 ? (nb/villes).toFixed(1) : '—';
+}
+
+// ── FILTRES ──────────────────────────────────────────────────────
+function filtered() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const fType = document.getElementById('filter-type').value;
+  const fAgenda = document.getElementById('filter-agenda').value;
+  const fPeriode = document.getElementById('filter-periode').value;
+  const fMontant = parseInt(document.getElementById('filter-montant').value);
+
+  const now = new Date();
+  const d = (offset) => new Date(now - offset * 864e5).toISOString().slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+  const d30p = d(30), d90p = d(90);
+  const d30f = new Date(+now + 30 * 864e5).toISOString().slice(0, 10);
+
+  return ALL.filter(c => {
+    const nom = (c.nom || c.titre_calendrier || '').toLowerCase();
+    const adr = (c.adresse || '').toLowerCase();
+    const dev = (c.devis || '').toLowerCase();
+    if (search && !nom.includes(search) && !adr.includes(search) && !dev.includes(search)) return false;
+    if (fType) {
+      const t = c.doc_type || 'inconnu';
+      if (t !== fType) return false;
+    }
+    if (fAgenda && !c.calendar.includes(fAgenda)) return false;
+    if (fMontant < 15000 && (c.montant || 0) > fMontant) return false;
+    if (fPeriode) {
+      const dt = c.date || '';
+      if (fPeriode === 'past30' && !(dt >= d30p && dt <= today)) return false;
+      if (fPeriode === 'past90' && !(dt >= d90p && dt <= today)) return false;
+      if (fPeriode === 'future30' && !(dt > today && dt <= d30f)) return false;
+    }
+    return true;
+  });
+}
+
+function apply() {
+  const list = filtered();
+  renderMarkers(list);
+  renderList(list);
+  updateStats(list);
+}
+
+// ── EVENTS ───────────────────────────────────────────────────────
+document.getElementById('search').addEventListener('input', apply);
+document.getElementById('filter-type').addEventListener('change', apply);
+document.getElementById('filter-agenda').addEventListener('change', apply);
+document.getElementById('filter-periode').addEventListener('change', apply);
+document.getElementById('filter-montant').addEventListener('input', function() {
+  const v = parseInt(this.value);
+  document.getElementById('montant-label').textContent = v >= 15000 ? 'Tous' : v.toLocaleString('fr-FR') + ' €';
+  apply();
+});
+
+// ── INIT ─────────────────────────────────────────────────────────
+apply();
+</script>
+</body>
+</html>
